@@ -4959,41 +4959,12 @@
     }
   },
   "paint_fill-heatmap": {
-    "fill-heatmap-radius": {
+    "fill-heatmap-limit-count": {
       "type": "number",
-      "default": 30,
+      "default": 100,
       "minimum": 1,
-      "transition": true,
-      "units": "pixels",
-      "doc": "Radius of influence of one heatmap point in pixels. Increasing the value makes the heatmap smoother, but less detailed.",
-      "sdk-support": {
-        "basic functionality": {
-          "js": "0.41.0",
-          "android": "6.0.0",
-          "ios": "4.0.0"
-        },
-        "data-driven styling": {
-          "js": "0.43.0",
-          "android": "6.0.0",
-          "ios": "4.0.0"
-        }
-      },
-      "expression": {
-        "interpolated": true,
-        "parameters": [
-          "zoom",
-          "feature",
-          "feature-state"
-        ]
-      },
-      "property-type": "data-driven"
-    },
-    "fill-heatmap-weight": {
-      "type": "number",
-      "default": 1,
-      "minimum": 0,
       "transition": false,
-      "doc": "A measure of how much an individual point contributes to the heatmap. A value of 10 would be equivalent to having 10 points of weight 1 in the same spot. Especially useful when combined with clustering.",
+      "doc": "A measure of how many overlapping polygons are necessary to reach the maximum color value.  Counts greater than this value will render as the maximum color.",
       "sdk-support": {
         "basic functionality": {
           "js": "0.41.0",
@@ -5015,27 +4986,6 @@
         ]
       },
       "property-type": "data-driven"
-    },
-    "fill-heatmap-intensity": {
-      "type": "number",
-      "default": 1,
-      "minimum": 0,
-      "transition": true,
-      "doc": "Similar to `heatmap-weight` but controls the intensity of the heatmap globally. Primarily used for adjusting the heatmap based on zoom level.",
-      "sdk-support": {
-        "basic functionality": {
-          "js": "0.41.0",
-          "android": "6.0.0",
-          "ios": "4.0.0"
-        }
-      },
-      "expression": {
-        "interpolated": true,
-        "parameters": [
-          "zoom"
-        ]
-      },
-      "property-type": "data-constant"
     },
     "fill-heatmap-color": {
       "type": "color",
