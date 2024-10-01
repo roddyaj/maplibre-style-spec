@@ -2860,7 +2860,7 @@
         }
       },
       "index-of": {
-        "doc": "Returns the first position at which an item can be found in an array or a substring can be found in a string, or `-1` if the input cannot be found. Accepts an optional index from where to begin the search.",
+        "doc": "Returns the first position at which an item can be found in an array or a substring can be found in a string, or `-1` if the input cannot be found. Accepts an optional index from where to begin the search. In a string, a UTF-16 surrogate pair counts as a single position.",
         "example": {
           "syntax": {
             "method": ["value", "value", "number?"],
@@ -2878,7 +2878,7 @@
         }
       },
       "slice": {
-        "doc": "Returns an item from an array or a substring from a string from a specified start index, or between a start index and an end index if set. The return value is inclusive of the start index but not of the end index.",
+        "doc": "Returns an item from an array or a substring from a string from a specified start index, or between a start index and an end index if set. The return value is inclusive of the start index but not of the end index. In a string, a UTF-16 surrogate pair counts as a single position.",
         "example": {
           "syntax": {
             "method": ["value", "number", "number?"],
@@ -3414,7 +3414,7 @@
         }
       },
       "length": {
-        "doc": "Gets the length of an array or string.",
+        "doc": "Gets the length of an array or string. In a string, a UTF-16 surrogate pair counts as a single position.",
         "example": {
           "syntax": {
             "method": ["array"],
@@ -4446,7 +4446,7 @@
         ]
       },
       "transition": true,
-      "doc": "How to blend the fog over the 3D terrain. A value between 0 and 1. Where 0 is the map center and 1 is the horizon"
+      "doc": "How to blend the fog over the 3D terrain. Where 0 is the map center and 1 is the horizon."
     },
     "horizon-fog-blend": {
       "type": "number",
@@ -4461,7 +4461,7 @@
         ]
       },
       "transition": true,
-      "doc": "How to blend the fog color and the horizon color. A value between 0 and 1. Where 0 is the horizon and 1 is map-height / 2"
+      "doc": "How to blend the fog color and the horizon color. Where 0 is using the horizon color only and 1 is using the fog color only."
     },
     "sky-horizon-blend": {
       "type": "number",
@@ -4476,7 +4476,7 @@
         ]
       },
       "transition": true,
-      "doc": "How to blend the atmosphere. A value between 0 and 1. Where 1 is visible atmosphere and 0 is hidden. It is best to interpolate this expression when using globe"
+      "doc": "How to blend the the sky color and the horizon color. Where 1 is blending the color at the middle of the sky and 0 is not blending at all and using the sky color only."
     },
     "atmosphere-blend": {
       "type": "number",
@@ -4491,7 +4491,7 @@
         ]
       },
       "transition": true,
-      "doc": "How to blend the the sky color and the horizon color. A value between 0 and 1."
+      "doc": "How to blend the atmosphere. Where 1 is visible atmosphere and 0 is hidden. It is best to interpolate this expression when using globe projection."
     }
   },
   "terrain": {
