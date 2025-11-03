@@ -1,3 +1,8 @@
+<p align="center">
+  <img src="https://github.com/user-attachments/assets/7ff2cda8-f564-4e70-a971-d34152f969f0#gh-light-mode-only" alt="MapLibre Logo" width="200">
+  <img src="https://github.com/user-attachments/assets/cee8376b-9812-40ff-91c6-2d53f9581b83#gh-dark-mode-only" alt="MapLibre Logo" width="200">
+</p>
+
 # MapLibre Style Specification & Utilities
 
 [![NPM Version](https://badge.fury.io/js/@maplibre%2Fmaplibre-gl-style-spec.svg)](https://npmjs.org/package/@maplibre/maplibre-gl-style-spec) 
@@ -36,7 +41,7 @@ Note that generated files should not be checked in and they are excluded in `.gi
 ## NPM Package
 
 
-The MapLibre style specification and utilities are published as a seperate npm
+The MapLibre style specification and utilities are published as a separate npm
 package so that they can be installed without the bulk of GL JS.
 
     npm install @maplibre/maplibre-gl-style-spec

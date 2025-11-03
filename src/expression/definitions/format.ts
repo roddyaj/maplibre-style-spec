@@ -7,12 +7,12 @@ import {
     ColorType,
     ResolvedImageType,
 } from '../types';
-import Formatted, {FormattedSection} from '../types/formatted';
-import {toString, typeOf} from '../values';
+import {Formatted, FormattedSection, VERTICAL_ALIGN_OPTIONS, VerticalAlign} from '../types/formatted';
+import {valueToString, typeOf} from '../values';
 
 import type {Expression} from '../expression';
-import type EvaluationContext from '../evaluation_context';
-import type ParsingContext from '../parsing_context';
+import type {EvaluationContext} from '../evaluation_context';
+import type {ParsingContext} from '../parsing_context';
 import type {Type} from '../types';
 
 type FormattedSectionExpression = {
@@ -22,9 +22,10 @@ type FormattedSectionExpression = {
     scale: Expression | null;
     font: Expression | null;
     textColor: Expression | null;
+    verticalAlign: Expression | null;
 };
 
-export default class FormatExpression implements Expression {
+export class FormatExpression implements Expression {
     type: Type;
     sections: Array<FormattedSectionExpression>;
 
@@ -69,10 +70,21 @@ export default class FormatExpression implements Expression {
                     if (!textColor) return null;
                 }
 
+                let verticalAlign = null;
+                if (arg['vertical-align']) {
+                    if (typeof arg['vertical-align'] === 'string' && !VERTICAL_ALIGN_OPTIONS.includes(arg['vertical-align'] as VerticalAlign)) {
+                        return context.error(`'vertical-align' must be one of: 'bottom', 'center', 'top' but found '${arg['vertical-align']}' instead.`) as null;
+                    }
+
+                    verticalAlign = context.parse(arg['vertical-align'], 1, StringType);
+                    if (!verticalAlign) return null;
+                }
+
                 const lastExpression = sections[sections.length - 1];
                 lastExpression.scale = scale;
                 lastExpression.font = font;
                 lastExpression.textColor = textColor;
+                lastExpression.verticalAlign = verticalAlign;
             } else {
                 const content = context.parse(args[i], 1, ValueType);
                 if (!content) return null;
@@ -82,7 +94,7 @@ export default class FormatExpression implements Expression {
                     return context.error('Formatted text type must be \'string\', \'value\', \'image\' or \'null\'.') as null;
 
                 nextTokenMayBeObject = true;
-                sections.push({content, scale: null, font: null, textColor: null});
+                sections.push({content, scale: null, font: null, textColor: null, verticalAlign: null});
             }
         }
 
@@ -93,15 +105,23 @@ export default class FormatExpression implements Expression {
         const evaluateSection = section => {
             const evaluatedContent = section.content.evaluate(ctx);
             if (typeOf(evaluatedContent) === ResolvedImageType) {
-                return new FormattedSection('', evaluatedContent, null, null, null);
+                return new FormattedSection(
+                    '',
+                    evaluatedContent,
+                    null,
+                    null,
+                    null,
+                    section.verticalAlign ? section.verticalAlign.evaluate(ctx) : null
+                );
             }
 
             return new FormattedSection(
-                toString(evaluatedContent),
+                valueToString(evaluatedContent),
                 null,
                 section.scale ? section.scale.evaluate(ctx) : null,
                 section.font ? section.font.evaluate(ctx).join(',') : null,
-                section.textColor ? section.textColor.evaluate(ctx) : null
+                section.textColor ? section.textColor.evaluate(ctx) : null,
+                section.verticalAlign ? section.verticalAlign.evaluate(ctx) : null
             );
         };
 
@@ -119,6 +139,9 @@ export default class FormatExpression implements Expression {
             }
             if (section.textColor) {
                 fn(section.textColor);
+            }
+            if (section.verticalAlign) {
+                fn(section.verticalAlign);
             }
         }
     }

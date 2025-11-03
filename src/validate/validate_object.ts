@@ -1,8 +1,9 @@
 
-import ValidationError from '../error/validation_error';
-import getType from '../util/get_type';
+import {ValidationError} from '../error/validation_error';
+import {getOwn} from '../util/get_own';
+import {getType} from '../util/get_type';
 
-export default function validateObject(options): Array<ValidationError> {
+export function validateObject(options): Array<ValidationError> {
     const key = options.key;
     const object = options.value;
     const elementSpecs = options.valueSpec || {};
@@ -19,12 +20,13 @@ export default function validateObject(options): Array<ValidationError> {
 
     for (const objectKey in object) {
         const elementSpecKey = objectKey.split('.')[0]; // treat 'paint.*' as 'paint'
-        const elementSpec = elementSpecs[elementSpecKey] || elementSpecs['*'];
+        // objectKey comes from the user controlled style input, so elementSpecKey may be e.g. "__proto__"
+        const elementSpec = getOwn(elementSpecs, elementSpecKey) || elementSpecs['*'];
 
         let validateElement;
-        if (elementValidators[elementSpecKey]) {
+        if (getOwn(elementValidators, elementSpecKey)) {
             validateElement = elementValidators[elementSpecKey];
-        } else if (elementSpecs[elementSpecKey]) {
+        } else if (getOwn(elementSpecs, elementSpecKey)) {
             validateElement = validateSpec;
         } else if (elementValidators['*']) {
             validateElement = elementValidators['*'];

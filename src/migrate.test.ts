@@ -1,7 +1,9 @@
-import migrate from './migrate';
+import {migrate} from './migrate';
 import * as spec from '.';
 import v8 from './reference/v8.json' with {type: 'json'};
-import validate from './validate_style';
+import {validateStyle} from './validate_style';
+import {describe, test, expect} from 'vitest';
+import type {StyleSpecification} from './types.g';
 
 describe('migrate', () => {
     test('does not migrate from version 5', () => {
@@ -107,7 +109,7 @@ describe('migrate', () => {
             'some-icon',
             ''
         ]);
-        expect(validate(migrated, v8)).toEqual([]);
+        expect(validateStyle(migrated, v8)).toEqual([]);
     });
 
     test('converts colors to supported format', () => {
@@ -139,4 +141,25 @@ describe('migrate', () => {
         });
     });
 
+    test('migrates successfully when style contains transition properties', () => {
+        const style: StyleSpecification = {
+            version: 8,
+            sources: {},
+            layers: [{
+                id: 'layer-with-transition',
+                type: 'symbol',
+                source: 'vector-source',
+                paint: {
+                    'icon-color': 'hsl(100,0.3,.2)',
+                    'icon-opacity-transition': {duration: 0},
+                },
+            }],
+        };
+
+        expect(() => migrate(style)).not.toThrow();
+        expect(style.layers[0].paint).toEqual({
+            'icon-color': 'hsl(100,30%,20%)',
+            'icon-opacity-transition': {duration: 0},
+        });
+    });
 });

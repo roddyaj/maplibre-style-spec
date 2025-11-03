@@ -28,7 +28,7 @@ type ExpectedTypes = {[_: string]: ExpressionInputType};
  *
  * We account for this by inserting a preflight type-checking expression before
  * each "any" term, allowing us to avoid evaluating the actual converted filter
- * if any type mismatches would cause it to produce an evalaution error:
+ * if any type mismatches would cause it to produce an evaluation error:
  *
  *     ["any",
  *       ["case",
@@ -52,7 +52,7 @@ type ExpectedTypes = {[_: string]: ExpressionInputType};
  * false (legacy filter semantics) are equivalent: they cause the filter to
  * produce a `false` result.
  */
-export default function convertFilter(filter: FilterSpecification, expectedTypes: ExpectedTypes = {}): ExpressionFilterSpecification {
+export function convertFilter(filter: FilterSpecification, expectedTypes: ExpectedTypes = {}): ExpressionFilterSpecification {
     if (isExpressionFilter(filter)) return filter;
     if (!filter) return true;
 

@@ -1,16 +1,17 @@
-import deref from './deref';
+import {derefLayers, type LayerWithRef} from './deref';
+import {describe, test, expect} from 'vitest';
 
 describe('deref', () => {
     test('derefs a ref layer which follows its parent', () => {
-        expect(deref([
+        expect(derefLayers([
             {
                 'id': 'parent',
                 'type': 'line'
-            },
+            } as LayerWithRef,
             {
                 'id': 'child',
                 'ref': 'parent'
-            }
+            } as LayerWithRef
         ])).toEqual([
             {
                 'id': 'parent',
@@ -24,15 +25,15 @@ describe('deref', () => {
     });
 
     test('derefs a ref layer which precedes its parent', () => {
-        expect(deref([
+        expect(derefLayers([
             {
                 'id': 'child',
                 'ref': 'parent'
-            },
+            } as LayerWithRef,
             {
                 'id': 'parent',
                 'type': 'line'
-            }
+            } as LayerWithRef
         ])).toEqual([
             {
                 'id': 'child',

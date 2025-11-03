@@ -1,5 +1,8 @@
-import type Color from '../../util/color';
-import type ResolvedImage from '../types/resolved_image';
+import type {Color} from '../../expression/types/color';
+import type {ResolvedImage} from '../types/resolved_image';
+
+export const VERTICAL_ALIGN_OPTIONS = ['bottom', 'center', 'top'] as const;
+export type VerticalAlign = typeof VERTICAL_ALIGN_OPTIONS[number];
 
 export class FormattedSection {
     text: string;
@@ -7,17 +10,19 @@ export class FormattedSection {
     scale: number | null;
     fontStack: string | null;
     textColor: Color | null;
+    verticalAlign: VerticalAlign | null;
 
-    constructor(text: string, image: ResolvedImage | null, scale: number | null, fontStack: string | null, textColor: Color | null) {
+    constructor(text: string, image: ResolvedImage | null, scale: number | null, fontStack: string | null, textColor: Color | null, verticalAlign: VerticalAlign | null) {
         this.text = text;
         this.image = image;
         this.scale = scale;
         this.fontStack = fontStack;
         this.textColor = textColor;
+        this.verticalAlign = verticalAlign;
     }
 }
 
-export default class Formatted {
+export class Formatted {
     sections: Array<FormattedSection>;
 
     constructor(sections: Array<FormattedSection>) {
@@ -25,7 +30,7 @@ export default class Formatted {
     }
 
     static fromString(unformatted: string): Formatted {
-        return new Formatted([new FormattedSection(unformatted, null, null, null, null)]);
+        return new Formatted([new FormattedSection(unformatted, null, null, null, null, null)]);
     }
 
     isEmpty(): boolean {

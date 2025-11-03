@@ -1,11 +1,14 @@
 
-import Color from '../util/color';
-import Collator from './types/collator';
-import Formatted from './types/formatted';
-import Padding from '../util/padding';
-import VariableAnchorOffsetCollection from '../util/variable_anchor_offset_collection';
-import ResolvedImage from './types/resolved_image';
-import {NullType, NumberType, StringType, BooleanType, ColorType, ObjectType, ValueType, CollatorType, FormattedType, ResolvedImageType, array, PaddingType, VariableAnchorOffsetCollectionType} from './types';
+import {Color} from './types/color';
+import {Collator} from './types/collator';
+import {Formatted} from './types/formatted';
+import {Padding} from './types/padding';
+import {NumberArray} from './types/number_array';
+import {ColorArray} from './types/color_array';
+import {VariableAnchorOffsetCollection} from './types/variable_anchor_offset_collection';
+import {ResolvedImage} from './types/resolved_image';
+import {ProjectionDefinition} from './types/projection_definition';
+import {NullType, NumberType, StringType, BooleanType, ColorType, ObjectType, ValueType, CollatorType, FormattedType, ResolvedImageType, array, PaddingType, NumberArrayType, ColorArrayType, VariableAnchorOffsetCollectionType, ProjectionDefinitionType} from './types';
 
 import type {Type} from './types';
 
@@ -28,7 +31,7 @@ export function validateRGBA(r: unknown, g: unknown, b: unknown, a?: unknown): s
     return null;
 }
 
-export type Value = null | string | boolean | number | Color | Collator | Formatted | Padding | ResolvedImage | VariableAnchorOffsetCollection | ReadonlyArray<Value> | {
+export type Value = null | string | boolean | number | Color | ProjectionDefinition | Collator | Formatted | Padding | NumberArray | ColorArray | ResolvedImage | VariableAnchorOffsetCollection | ReadonlyArray<Value> | {
     readonly [x: string]: Value;
 };
 
@@ -37,10 +40,13 @@ export function isValue(mixed: unknown): boolean {
         typeof mixed === 'string' ||
         typeof mixed === 'boolean' ||
         typeof mixed === 'number' ||
+        mixed instanceof ProjectionDefinition ||
         mixed instanceof Color ||
         mixed instanceof Collator ||
         mixed instanceof Formatted ||
         mixed instanceof Padding ||
+        mixed instanceof NumberArray ||
+        mixed instanceof ColorArray ||
         mixed instanceof VariableAnchorOffsetCollection ||
         mixed instanceof ResolvedImage) {
         return true;
@@ -74,12 +80,18 @@ export function typeOf(value: Value): Type {
         return NumberType;
     } else if (value instanceof Color) {
         return ColorType;
+    } else if (value instanceof ProjectionDefinition) {
+        return ProjectionDefinitionType;
     } else if (value instanceof Collator) {
         return CollatorType;
     } else if (value instanceof Formatted) {
         return FormattedType;
     } else if (value instanceof Padding) {
         return PaddingType;
+    } else if (value instanceof NumberArray) {
+        return NumberArrayType;
+    } else if (value instanceof ColorArray) {
+        return ColorArrayType;
     } else if (value instanceof VariableAnchorOffsetCollection) {
         return VariableAnchorOffsetCollectionType;
     } else if (value instanceof ResolvedImage) {
@@ -106,17 +118,15 @@ export function typeOf(value: Value): Type {
     }
 }
 
-export function toString(value: Value) {
+export function valueToString(value: Value) {
     const type = typeof value;
     if (value === null) {
         return '';
     } else if (type === 'string' || type === 'number' || type === 'boolean') {
         return String(value);
-    } else if (value instanceof Color || value instanceof Formatted || value instanceof Padding || value instanceof VariableAnchorOffsetCollection || value instanceof ResolvedImage) {
+    } else if (value instanceof Color || value instanceof ProjectionDefinition || value instanceof Formatted || value instanceof Padding || value instanceof NumberArray || value instanceof ColorArray || value instanceof VariableAnchorOffsetCollection || value instanceof ResolvedImage) {
         return value.toString();
     } else {
         return JSON.stringify(value);
     }
 }
-
-export {Color, Collator, Padding, VariableAnchorOffsetCollection};

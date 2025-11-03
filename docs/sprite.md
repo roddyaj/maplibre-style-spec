@@ -27,18 +27,18 @@ You can also supply an array of `{ id: ..., url: ... }` pairs to load multiple s
 
 ```json
 "sprite": [
-  {
-    id: 'roadsigns',
-    url: 'https://example.com/myroadsigns'
-  },
-  {
-    id: 'shops',
-    url: 'https://example2.com/someurl'
-  },
-  {
-    id: 'default',
-    url: 'https://example2.com/anotherurl'
-  }
+    {
+        "id": "roadsigns",
+        "url": "https://example.com/myroadsigns"
+    },
+    {
+        "id": "shops",
+        "url": "https://example2.com/someurl"
+    },
+    {
+        "id": "default",
+        "url": "https://example2.com/anotherurl"
+    }
 ]
 ```
 
@@ -69,7 +69,7 @@ A valid sprite source must supply two types of files:
 |SDK Support|MapLibre GL JS|MapLibre Native<br>Android|MapLibre Native<br>iOS|
 |-----------|--------------|-----------|-------|
 |basic functionality| ✅ | ✅ | ✅ |
-|`textFitWidth`, `textFitHeight`| 4.2.0 | Not supported yet | Not supported yet |
+|`textFitWidth`, `textFitHeight`| 4.2.0 | 11.4.0 | 6.6.0 |
 
 ### Optional Properties
 
@@ -88,7 +88,7 @@ The following image gives a bit more infomation regarding the stretch properties
 
 ```json
 {
-    "sheild": {
+    "shield": {
         "width": 25,
         "height": 30,
         "x": 0,
@@ -130,4 +130,4 @@ On high-DPI devices, `@2x` is appended to  the URLs described above. For example
 
 ## Generating Sprites
 
-A tool that can generate sprites from svg files can be found in here: [@elastic/spritezero](https://www.npmjs.com/package/@elastic/spritezero)
+There are tools that can generate sprites from SVG files, such as [spreet](https://github.com/flother/spreet) and [spritezero](https://www.npmjs.com/package/@elastic/spritezero).

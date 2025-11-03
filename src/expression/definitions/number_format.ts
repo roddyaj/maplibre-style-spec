@@ -1,30 +1,11 @@
 import {StringType, NumberType} from '../types';
 
 import type {Expression} from '../expression';
-import type EvaluationContext from '../evaluation_context';
-import type ParsingContext from '../parsing_context';
+import type {EvaluationContext} from '../evaluation_context';
+import type {ParsingContext} from '../parsing_context';
 import type {Type} from '../types';
 
-declare let Intl: {
-    NumberFormat: {
-        new (...args: any): Intl$NumberFormat;
-    };
-};
-
-declare class Intl$NumberFormat {
-    constructor(locales?: string | string[], options?: NumberFormatOptions);
-    format(a: number): string;
-    resolvedOptions(): any;
-}
-
-type NumberFormatOptions = {
-    style?: 'decimal' | 'currency' | 'percent';
-    currency?: null | string;
-    minimumFractionDigits?: null | string;
-    maximumFractionDigits?: null | string;
-};
-
-export default class NumberFormat implements Expression {
+export class NumberFormat implements Expression {
     type: Type;
     number: Expression;
     locale: Expression | null;   // BCP 47 language tag

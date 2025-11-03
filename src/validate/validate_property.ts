@@ -1,11 +1,11 @@
 
-import ValidationError from '../error/validation_error';
-import getType from '../util/get_type';
+import {ValidationError} from '../error/validation_error';
+import {getType} from '../util/get_type';
 import {isFunction} from '../function';
 import {unbundle, deepUnbundle} from '../util/unbundle_jsonlint';
 import {supportsPropertyExpression} from '../util/properties';
 
-export default function validateProperty(options, propertyType) {
+export function validateProperty(options, propertyType) {
     const key = options.key;
     const validateSpec = options.validateSpec;
     const style = options.style;
@@ -43,9 +43,6 @@ export default function validateProperty(options, propertyType) {
     const errors = [];
 
     if (options.layerType === 'symbol') {
-        if (propertyKey === 'text-field' && style && !style.glyphs) {
-            errors.push(new ValidationError(key, value, 'use of "text-field" requires a style "glyphs" property'));
-        }
         if (propertyKey === 'text-font' && isFunction(deepUnbundle(value)) && unbundle(value.type) === 'identity') {
             errors.push(new ValidationError(key, value, '"text-font" does not support identity functions'));
         }

@@ -1,5 +1,50 @@
+import v8Spec from './reference/v8.json' with {type: 'json'};
+const v8 = v8Spec as any;
+import latest from './reference/latest';
+import {derefLayers} from './deref';
+import {diff} from './diff';
+import {ValidationError} from './error/validation_error';
+import {ParsingError} from './error/parsing_error';
+import {FeatureState, StyleExpression, isExpression, isZoomExpression, createExpression, createPropertyExpression, normalizePropertyExpression, ZoomConstantExpression, ZoomDependentExpression, StylePropertyFunction, Feature, GlobalProperties, SourceExpression, CompositeExpression, StylePropertyExpression} from './expression';
+import {featureFilter, isExpressionFilter} from './feature_filter';
+
+import {convertFilter} from './feature_filter/convert';
+import {Color} from './expression/types/color';
+import {Padding} from './expression/types/padding';
+import {NumberArray} from './expression/types/number_array';
+import {ColorArray} from './expression/types/color_array';
+import {VariableAnchorOffsetCollection} from './expression/types/variable_anchor_offset_collection';
+import {Formatted, FormattedSection} from './expression/types/formatted';
+import {createFunction, isFunction} from './function';
+import {convertFunction} from './function/convert';
+import {eachSource, eachLayer, eachProperty} from './visit';
+import {ResolvedImage} from './expression/types/resolved_image';
+import {supportsPropertyExpression} from './util/properties';
+import {IMercatorCoordinate, ICanonicalTileID, ILngLat, ILngLatLike} from './tiles_and_coordinates';
+import {EvaluationContext} from './expression/evaluation_context';
+import {FormattedType, NullType, Type, typeToString, ColorType, ProjectionDefinitionType} from './expression/types';
+
+import {expressions} from './expression/definitions';
+import {Interpolate} from './expression/definitions/interpolate';
+import {interpolateFactory, type InterpolationType} from './expression/definitions/interpolate';
+
+import {groupByLayout} from './group_by_layout';
+import {emptyStyle} from './empty';
+import {validateStyleMin} from './validate_style.min';
+import {Step} from './expression/definitions/step';
+import {typeOf} from './expression/values';
+import {FormatExpression} from './expression/definitions/format';
+import {Literal} from './expression/definitions/literal';
+import {CompoundExpression} from './expression/compound_expression';
+import {ColorSpecification, PaddingSpecification, NumberArraySpecification, ColorArraySpecification, ProjectionDefinitionSpecification, VariableAnchorOffsetCollectionSpecification} from './types.g';
+import {format} from './format';
+import {validate} from './validate/validate';
+import {migrate} from './migrate';
+import {classifyRings} from './util/classify_rings';
+import {ProjectionDefinition} from './expression/types/projection_definition';
+
 type ExpressionType = 'data-driven' | 'cross-faded' | 'cross-faded-data-driven' | 'color-ramp' | 'data-constant' | 'constant';
-type ExpressionParameters = Array<'zoom' | 'feature' | 'feature-state' | 'heatmap-density' | 'line-progress'>;
+type ExpressionParameters = Array<'zoom' | 'feature' | 'feature-state' | 'heatmap-density' | 'elevation' | 'line-progress'>;
 
 type ExpressionSpecificationDefinition = {
     interpolated: boolean;
@@ -37,7 +82,7 @@ export type StylePropertySpecification = {
     'property-type': ExpressionType;
     expression?: ExpressionSpecificationDefinition;
     transition: boolean;
-    default?: string;
+    default?: ColorSpecification;
     overridable: boolean;
 } | {
     type: 'array';
@@ -60,57 +105,32 @@ export type StylePropertySpecification = {
     'property-type': ExpressionType;
     expression?: ExpressionSpecificationDefinition;
     transition: boolean;
-    default?: number | Array<number>;
+    default?: PaddingSpecification;
+} | {
+    type: 'numberArray';
+    'property-type': ExpressionType;
+    expression?: ExpressionSpecificationDefinition;
+    transition: boolean;
+    default?: NumberArraySpecification;
+} | {
+    type: 'colorArray';
+    'property-type': ExpressionType;
+    expression?: ExpressionSpecificationDefinition;
+    transition: boolean;
+    default?: ColorArraySpecification;
 } | {
     type: 'variableAnchorOffsetCollection';
     'property-type': ExpressionType;
     expression?: ExpressionSpecificationDefinition;
     transition: boolean;
     default?: VariableAnchorOffsetCollectionSpecification;
+} | {
+    type: 'projectionDefinition';
+    'property-type': ExpressionType;
+    expression?: ExpressionSpecificationDefinition;
+    transition: boolean;
+    default?: ProjectionDefinitionSpecification;
 };
-
-import v8Spec from './reference/v8.json' with {type: 'json'};
-const v8 = v8Spec as any;
-import latest from './reference/latest';
-import derefLayers from './deref';
-import diff from './diff';
-import ValidationError from './error/validation_error';
-import ParsingError from './error/parsing_error';
-import {FeatureState, StyleExpression, isExpression, isZoomExpression, createExpression, createPropertyExpression, normalizePropertyExpression, ZoomConstantExpression, ZoomDependentExpression, StylePropertyFunction, Feature, GlobalProperties, SourceExpression, CompositeExpression, StylePropertyExpression} from './expression';
-import featureFilter, {isExpressionFilter} from './feature_filter';
-
-import convertFilter from './feature_filter/convert';
-import Color from './util/color';
-import Padding from './util/padding';
-import VariableAnchorOffsetCollection from './util/variable_anchor_offset_collection';
-import Formatted, {FormattedSection} from './expression/types/formatted';
-import {createFunction, isFunction} from './function';
-import convertFunction from './function/convert';
-import {eachSource, eachLayer, eachProperty} from './visit';
-import ResolvedImage from './expression/types/resolved_image';
-import {supportsPropertyExpression} from './util/properties';
-import {IMercatorCoordinate, ICanonicalTileID, ILngLat, ILngLatLike} from './tiles_and_coordinates';
-import EvaluationContext from './expression/evaluation_context';
-import {FormattedType, NullType, Type, toString, ColorType} from './expression/types';
-
-import interpolates, {interpolateFactory} from './util/interpolate';
-import {expressions} from './expression/definitions';
-import Interpolate from './expression/definitions/interpolate';
-import type {InterpolationType} from './expression/definitions/interpolate';
-
-import groupByLayout from './group_by_layout';
-import emptyStyle from './empty';
-import validateStyleMin from './validate_style.min';
-import Step from './expression/definitions/step';
-import {typeOf} from './expression/values';
-import FormatExpression from './expression/definitions/format';
-import Literal from './expression/definitions/literal';
-import CompoundExpression from './expression/compound_expression';
-import {VariableAnchorOffsetCollectionSpecification} from './types.g';
-import format from './format';
-import validate from './validate/validate';
-import migrate from './migrate';
-import {classifyRings} from './util/classify_rings';
 
 const expression = {
     StyleExpression,
@@ -139,10 +159,13 @@ export {
     ValidationError,
     ParsingError,
     FeatureState,
+    ProjectionDefinition,
     Color,
     Step,
     CompoundExpression,
     Padding,
+    NumberArray,
+    ColorArray,
     VariableAnchorOffsetCollection,
     Formatted,
     ResolvedImage,
@@ -167,7 +190,6 @@ export {
 
     latest,
 
-    interpolateFactory,
     validateStyleMin,
     groupByLayout,
     emptyStyle,
@@ -184,14 +206,15 @@ export {
     convertFilter,
     featureFilter,
     typeOf,
-    toString,
+    typeToString as toString,
     format,
     validate,
     migrate,
     classifyRings,
 
+    ProjectionDefinitionType,
     ColorType,
-    interpolates,
+    interpolateFactory as interpolates,
     v8,
     NullType,
     styleFunction as function,

@@ -1,14 +1,13 @@
 
-import getType from '../util/get_type';
-import ValidationError from '../error/validation_error';
+import {getType} from '../util/get_type';
+import {ValidationError} from '../error/validation_error';
 
-export default function validateNumber(options) {
+export function validateNumber(options) {
     const key = options.key;
     const value = options.value;
     const valueSpec = options.valueSpec;
     let type = getType(value);
 
-    // eslint-disable-next-line no-self-compare
     if (type === 'number' && value !== value) {
         type = 'NaN';
     }

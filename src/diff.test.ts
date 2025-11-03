@@ -1,9 +1,10 @@
-import diffStyles from './diff';
+import {diff} from './diff';
 import {StyleSpecification} from './types.g';
+import {describe, test, expect} from 'vitest';
 
 describe('diff', () => {
     test('layers id equal', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a'}]
         } as StyleSpecification, {
             layers: [{id: 'a'}]
@@ -11,7 +12,7 @@ describe('diff', () => {
     });
 
     test('version not equal', () => {
-        expect(diffStyles({
+        expect(diff({
             version: 7,
             layers: [{id: 'a'}]
         } as any as StyleSpecification, {
@@ -23,7 +24,7 @@ describe('diff', () => {
     });
 
     test('add layer at the end', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a'}]
         } as StyleSpecification, {
             layers: [{id: 'a'}, {id: 'b'}]
@@ -33,7 +34,7 @@ describe('diff', () => {
     });
 
     test('add layer at the beginning', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'b'}]
         } as StyleSpecification, {
             layers: [{id: 'a'}, {id: 'b'}]
@@ -43,7 +44,7 @@ describe('diff', () => {
     });
 
     test('remove layer', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a'}, {id: 'b', source: 'foo', nested: [1]}]
         } as StyleSpecification, {
             layers: [{id: 'a'}]
@@ -53,7 +54,7 @@ describe('diff', () => {
     });
 
     test('remove and add layer', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a'}, {id: 'b'}]
         } as StyleSpecification, {
             layers: [{id: 'b'}, {id: 'a'}]
@@ -64,7 +65,7 @@ describe('diff', () => {
     });
 
     test('set paint property', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', paint: {foo: 1}}]
         } as any as StyleSpecification, {
             layers: [{id: 'a', paint: {foo: 2}}]
@@ -74,7 +75,7 @@ describe('diff', () => {
     });
 
     test('set paint property with light', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', 'paint.light': {foo: 1}}]
         } as any as StyleSpecification, {
             layers: [{id: 'a', 'paint.light': {foo: 2}}]
@@ -84,7 +85,7 @@ describe('diff', () => {
     });
 
     test('set paint property with ramp', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', paint: {foo: {ramp: [1, 2]}}}]
         } as any as StyleSpecification, {
             layers: [{id: 'a', paint: {foo: {ramp: [1]}}}]
@@ -94,7 +95,7 @@ describe('diff', () => {
     });
 
     test('set layout property', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', layout: {foo: 1}}]
         } as any as StyleSpecification, {
             layers: [{id: 'a', layout: {foo: 2}}]
@@ -104,7 +105,7 @@ describe('diff', () => {
     });
 
     test('set filter', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', filter: ['==', 'foo', 'bar']}]
         } as StyleSpecification, {
             layers: [{id: 'a', filter: ['==', 'foo', 'baz']}]
@@ -114,7 +115,7 @@ describe('diff', () => {
     });
 
     test('remove source', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {foo: 1}
         } as any as StyleSpecification, {
             sources: {}
@@ -124,7 +125,7 @@ describe('diff', () => {
     });
 
     test('add source', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {}
         } as StyleSpecification, {
             sources: {foo: 1}
@@ -134,7 +135,7 @@ describe('diff', () => {
     });
 
     test('set goejson source data', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {
                 foo: {
                     type: 'geojson',
@@ -166,7 +167,7 @@ describe('diff', () => {
     });
 
     test('remove and add source', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {
                 foo: {
                     type: 'geojson',
@@ -192,7 +193,7 @@ describe('diff', () => {
     });
 
     test('remove and add source with clusterRadius', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {
                 foo: {
                     type: 'geojson',
@@ -221,7 +222,7 @@ describe('diff', () => {
     });
 
     test('remove and add source without clusterRadius', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {
                 foo: {
                     type: 'geojson',
@@ -249,21 +250,31 @@ describe('diff', () => {
     });
 
     test('global metadata', () => {
-        expect(diffStyles({} as StyleSpecification, {
+        expect(diff({} as StyleSpecification, {
             metadata: {'maplibre:author': 'nobody'}
         } as StyleSpecification)).toEqual([]);
     });
 
     test('layer metadata', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', metadata: {'maplibre:group': 'Group Name'}}]
         } as StyleSpecification, {
             layers: [{id: 'a', metadata: {'maplibre:group': 'Another Name'}}]
         } as StyleSpecification)).toEqual([]);
     });
 
+    test('set state', () => {
+        expect(diff({
+            state: {foo: 1}
+        } as any as StyleSpecification, {
+            state: {foo: 2}
+        } as any as StyleSpecification)).toEqual([
+            {command: 'setGlobalState', args: [{foo: 2}]}
+        ]);
+    });
+
     test('set center', () => {
-        expect(diffStyles({
+        expect(diff({
             center: [0, 0]
         } as StyleSpecification, {
             center: [1, 1]
@@ -272,8 +283,27 @@ describe('diff', () => {
         ]);
     });
 
+    test('set centerAltitude to undefined', () => {
+        expect(diff({
+            centerAltitude: 1
+        } as StyleSpecification, {
+        } as StyleSpecification)).toEqual([
+            {command: 'setCenterAltitude', args: [undefined]}
+        ]);
+    });
+
+    test('set centerAltitude', () => {
+        expect(diff({
+            centerAltitude: 0
+        } as StyleSpecification, {
+            centerAltitude: 1
+        } as StyleSpecification)).toEqual([
+            {command: 'setCenterAltitude', args: [1]}
+        ]);
+    });
+
     test('set zoom', () => {
-        expect(diffStyles({
+        expect(diff({
             zoom: 12
         } as StyleSpecification, {
             zoom: 15
@@ -283,7 +313,7 @@ describe('diff', () => {
     });
 
     test('set bearing', () => {
-        expect(diffStyles({
+        expect(diff({
             bearing: 0
         } as StyleSpecification, {
             bearing: 180
@@ -293,7 +323,7 @@ describe('diff', () => {
     });
 
     test('set pitch', () => {
-        expect(diffStyles({
+        expect(diff({
             pitch: 0
         } as StyleSpecification, {
             pitch: 1
@@ -302,8 +332,27 @@ describe('diff', () => {
         ]);
     });
 
+    test('set roll to undefined', () => {
+        expect(diff({
+            roll: 1
+        } as StyleSpecification, {
+        } as StyleSpecification)).toEqual([
+            {command: 'setRoll', args: [undefined]}
+        ]);
+    });
+
+    test('set roll', () => {
+        expect(diff({
+            roll: 0
+        } as StyleSpecification, {
+            roll: 1
+        } as StyleSpecification)).toEqual([
+            {command: 'setRoll', args: [1]}
+        ]);
+    });
+
     test('no changes in light', () => {
-        expect(diffStyles({
+        expect(diff({
             light: {
                 anchor: 'map',
                 color: 'white',
@@ -322,7 +371,7 @@ describe('diff', () => {
     });
 
     test('set light anchor', () => {
-        expect(diffStyles({
+        expect(diff({
             light: {anchor: 'map'}
         } as StyleSpecification, {
             light: {anchor: 'viewport'}
@@ -332,7 +381,7 @@ describe('diff', () => {
     });
 
     test('set light color', () => {
-        expect(diffStyles({
+        expect(diff({
             light: {color: 'white'}
         } as StyleSpecification, {
             light: {color: 'red'}
@@ -342,7 +391,7 @@ describe('diff', () => {
     });
 
     test('set light position', () => {
-        expect(diffStyles({
+        expect(diff({
             light: {position: [0, 1, 0]}
         } as StyleSpecification, {
             light: {position: [1, 0, 0]}
@@ -352,7 +401,7 @@ describe('diff', () => {
     });
 
     test('set light intensity', () => {
-        expect(diffStyles({
+        expect(diff({
             light: {intensity: 1}
         } as StyleSpecification, {
             light: {intensity: 10}
@@ -362,7 +411,7 @@ describe('diff', () => {
     });
 
     test('set light anchor and color', () => {
-        expect(diffStyles({
+        expect(diff({
             light: {
                 anchor: 'map',
                 color: 'orange',
@@ -387,7 +436,7 @@ describe('diff', () => {
     });
 
     test('add and remove layer on source change', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', source: 'source-one'}]
         } as StyleSpecification, {
             layers: [{id: 'a', source: 'source-two'}]
@@ -398,7 +447,7 @@ describe('diff', () => {
     });
 
     test('add and remove layer on type change', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', type: 'fill'}]
         } as StyleSpecification, {
             layers: [{id: 'a', type: 'line'}]
@@ -409,7 +458,7 @@ describe('diff', () => {
     });
 
     test('add and remove layer on source-layer change', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [{id: 'a', source: 'a', 'source-layer': 'layer-one'}]
         } as StyleSpecification, {
             layers: [{id: 'a', source: 'a', 'source-layer': 'layer-two'}]
@@ -420,7 +469,7 @@ describe('diff', () => {
     });
 
     test('add and remove layers on different order and type', () => {
-        expect(diffStyles({
+        expect(diff({
             layers: [
                 {id: 'b'},
                 {id: 'c'},
@@ -441,7 +490,7 @@ describe('diff', () => {
     });
 
     test('add and remove layer and source on source data change', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {foo: {data: 1}, bar: {}},
             layers: [
                 {id: 'a', source: 'bar'},
@@ -464,7 +513,7 @@ describe('diff', () => {
     });
 
     test('set transition', () => {
-        expect(diffStyles({
+        expect(diff({
             sources: {foo: {data: 1}, bar: {}},
             layers: [
                 {id: 'a', source: 'bar'}
@@ -481,7 +530,7 @@ describe('diff', () => {
     });
 
     test('no sprite change', () => {
-        expect(diffStyles({
+        expect(diff({
             sprite: 'a'
         } as StyleSpecification, {
             sprite: 'a'
@@ -489,7 +538,7 @@ describe('diff', () => {
     });
 
     test('set sprite', () => {
-        expect(diffStyles({
+        expect(diff({
             sprite: 'a'
         } as StyleSpecification, {
             sprite: 'b'
@@ -499,7 +548,7 @@ describe('diff', () => {
     });
 
     test('set sprite for multiple sprites', () => {
-        expect(diffStyles({
+        expect(diff({
             sprite: 'a'
         } as StyleSpecification, {
             sprite: [{'id': 'default', 'url': 'b'}]
@@ -509,7 +558,7 @@ describe('diff', () => {
     });
 
     test('no glyphs change', () => {
-        expect(diffStyles({
+        expect(diff({
             glyphs: 'a'
         } as StyleSpecification, {
             glyphs: 'a'
@@ -517,7 +566,7 @@ describe('diff', () => {
     });
 
     test('set glyphs', () => {
-        expect(diffStyles({
+        expect(diff({
             glyphs: 'a'
         } as StyleSpecification, {
             glyphs: 'b'
@@ -527,7 +576,7 @@ describe('diff', () => {
     });
 
     test('remove terrain', () => {
-        expect(diffStyles({
+        expect(diff({
             terrain: {
                 source: 'maplibre-dem',
                 exaggeration: 1.5
@@ -539,7 +588,7 @@ describe('diff', () => {
     });
 
     test('add terrain', () => {
-        expect(diffStyles({
+        expect(diff({
         } as StyleSpecification,
         {
             terrain: {
@@ -552,7 +601,7 @@ describe('diff', () => {
     });
 
     test('set sky', () => {
-        expect(diffStyles({
+        expect(diff({
         } as StyleSpecification,
         {
             sky: {
@@ -565,14 +614,13 @@ describe('diff', () => {
     });
 
     test('set projection', () => {
-        expect(diffStyles({
+        expect(diff({
         } as StyleSpecification,
         {
-            projection: {
-                type: 'globe'
-            }
+            projection: {type: ['vertical-perspective', 'mercator', 0.5]}
+
         } as StyleSpecification)).toEqual([
-            {command: 'setProjection', args: [{type: 'globe'}]},
+            {command: 'setProjection', args: [{type: ['vertical-perspective', 'mercator', 0.5]}]},
         ]);
     });
 });
