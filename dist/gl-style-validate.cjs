@@ -9,436 +9,511 @@
 		return x && x.__esModule && Object.prototype.hasOwnProperty.call(x, 'default') ? x['default'] : x;
 	}
 
-	function hasKey(obj, keys) {
-		var o = obj;
-		keys.slice(0, -1).forEach(function (key) {
-			o = o[key] || {};
-		});
+	var minimist$1;
+	var hasRequiredMinimist;
 
-		var key = keys[keys.length - 1];
-		return key in o;
-	}
+	function requireMinimist () {
+		if (hasRequiredMinimist) return minimist$1;
+		hasRequiredMinimist = 1;
 
-	function isNumber(x) {
-		if (typeof x === 'number') { return true; }
-		if ((/^0x[0-9a-f]+$/i).test(x)) { return true; }
-		return (/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(e[-+]?\d+)?$/).test(x);
-	}
+		function hasKey(obj, keys) {
+			var o = obj;
+			keys.slice(0, -1).forEach(function (key) {
+				o = o[key] || {};
+			});
 
-	function isConstructorOrProto(obj, key) {
-		return (key === 'constructor' && typeof obj[key] === 'function') || key === '__proto__';
-	}
-
-	var minimist = function (args, opts) {
-		if (!opts) { opts = {}; }
-
-		var flags = {
-			bools: {},
-			strings: {},
-			unknownFn: null,
-		};
-
-		if (typeof opts.unknown === 'function') {
-			flags.unknownFn = opts.unknown;
+			var key = keys[keys.length - 1];
+			return key in o;
 		}
 
-		if (typeof opts.boolean === 'boolean' && opts.boolean) {
-			flags.allBools = true;
-		} else {
-			[].concat(opts.boolean).filter(Boolean).forEach(function (key) {
-				flags.bools[key] = true;
-			});
+		function isNumber(x) {
+			if (typeof x === 'number') { return true; }
+			if ((/^0x[0-9a-f]+$/i).test(x)) { return true; }
+			return (/^[-+]?(?:\d+(?:\.\d*)?|\.\d+)(e[-+]?\d+)?$/).test(x);
 		}
 
-		var aliases = {};
-
-		function aliasIsBoolean(key) {
-			return aliases[key].some(function (x) {
-				return flags.bools[x];
-			});
+		function isConstructorOrProto(obj, key) {
+			return (key === 'constructor' && typeof obj[key] === 'function') || key === '__proto__';
 		}
 
-		Object.keys(opts.alias || {}).forEach(function (key) {
-			aliases[key] = [].concat(opts.alias[key]);
-			aliases[key].forEach(function (x) {
-				aliases[x] = [key].concat(aliases[key].filter(function (y) {
-					return x !== y;
-				}));
-			});
-		});
+		minimist$1 = function (args, opts) {
+			if (!opts) { opts = {}; }
 
-		[].concat(opts.string).filter(Boolean).forEach(function (key) {
-			flags.strings[key] = true;
-			if (aliases[key]) {
-				[].concat(aliases[key]).forEach(function (k) {
-					flags.strings[k] = true;
+			var flags = {
+				bools: {},
+				strings: {},
+				unknownFn: null,
+			};
+
+			if (typeof opts.unknown === 'function') {
+				flags.unknownFn = opts.unknown;
+			}
+
+			if (typeof opts.boolean === 'boolean' && opts.boolean) {
+				flags.allBools = true;
+			} else {
+				[].concat(opts.boolean).filter(Boolean).forEach(function (key) {
+					flags.bools[key] = true;
 				});
 			}
-		});
 
-		var defaults = opts.default || {};
+			var aliases = {};
 
-		var argv = { _: [] };
-
-		function argDefined(key, arg) {
-			return (flags.allBools && (/^--[^=]+$/).test(arg))
-				|| flags.strings[key]
-				|| flags.bools[key]
-				|| aliases[key];
-		}
-
-		function setKey(obj, keys, value) {
-			var o = obj;
-			for (var i = 0; i < keys.length - 1; i++) {
-				var key = keys[i];
-				if (isConstructorOrProto(o, key)) { return; }
-				if (o[key] === undefined) { o[key] = {}; }
-				if (
-					o[key] === Object.prototype
-					|| o[key] === Number.prototype
-					|| o[key] === String.prototype
-				) {
-					o[key] = {};
-				}
-				if (o[key] === Array.prototype) { o[key] = []; }
-				o = o[key];
+			function aliasIsBoolean(key) {
+				return aliases[key].some(function (x) {
+					return flags.bools[x];
+				});
 			}
 
-			var lastKey = keys[keys.length - 1];
-			if (isConstructorOrProto(o, lastKey)) { return; }
-			if (
-				o === Object.prototype
-				|| o === Number.prototype
-				|| o === String.prototype
-			) {
-				o = {};
-			}
-			if (o === Array.prototype) { o = []; }
-			if (o[lastKey] === undefined || flags.bools[lastKey] || typeof o[lastKey] === 'boolean') {
-				o[lastKey] = value;
-			} else if (Array.isArray(o[lastKey])) {
-				o[lastKey].push(value);
-			} else {
-				o[lastKey] = [o[lastKey], value];
-			}
-		}
-
-		function setArg(key, val, arg) {
-			if (arg && flags.unknownFn && !argDefined(key, arg)) {
-				if (flags.unknownFn(arg) === false) { return; }
-			}
-
-			var value = !flags.strings[key] && isNumber(val)
-				? Number(val)
-				: val;
-			setKey(argv, key.split('.'), value);
-
-			(aliases[key] || []).forEach(function (x) {
-				setKey(argv, x.split('.'), value);
+			Object.keys(opts.alias || {}).forEach(function (key) {
+				aliases[key] = [].concat(opts.alias[key]);
+				aliases[key].forEach(function (x) {
+					aliases[x] = [key].concat(aliases[key].filter(function (y) {
+						return x !== y;
+					}));
+				});
 			});
-		}
 
-		Object.keys(flags.bools).forEach(function (key) {
-			setArg(key, defaults[key] === undefined ? false : defaults[key]);
-		});
-
-		var notFlags = [];
-
-		if (args.indexOf('--') !== -1) {
-			notFlags = args.slice(args.indexOf('--') + 1);
-			args = args.slice(0, args.indexOf('--'));
-		}
-
-		for (var i = 0; i < args.length; i++) {
-			var arg = args[i];
-			var key;
-			var next;
-
-			if ((/^--.+=/).test(arg)) {
-				// Using [\s\S] instead of . because js doesn't support the
-				// 'dotall' regex modifier. See:
-				// http://stackoverflow.com/a/1068308/13216
-				var m = arg.match(/^--([^=]+)=([\s\S]*)$/);
-				key = m[1];
-				var value = m[2];
-				if (flags.bools[key]) {
-					value = value !== 'false';
+			[].concat(opts.string).filter(Boolean).forEach(function (key) {
+				flags.strings[key] = true;
+				if (aliases[key]) {
+					[].concat(aliases[key]).forEach(function (k) {
+						flags.strings[k] = true;
+					});
 				}
-				setArg(key, value, arg);
-			} else if ((/^--no-.+/).test(arg)) {
-				key = arg.match(/^--no-(.+)/)[1];
-				setArg(key, false, arg);
-			} else if ((/^--.+/).test(arg)) {
-				key = arg.match(/^--(.+)/)[1];
-				next = args[i + 1];
-				if (
-					next !== undefined
-					&& !(/^(-|--)[^-]/).test(next)
-					&& !flags.bools[key]
-					&& !flags.allBools
-					&& (aliases[key] ? !aliasIsBoolean(key) : true)
-				) {
-					setArg(key, next, arg);
-					i += 1;
-				} else if ((/^(true|false)$/).test(next)) {
-					setArg(key, next === 'true', arg);
-					i += 1;
-				} else {
-					setArg(key, flags.strings[key] ? '' : true, arg);
-				}
-			} else if ((/^-[^-]+/).test(arg)) {
-				var letters = arg.slice(1, -1).split('');
+			});
 
-				var broken = false;
-				for (var j = 0; j < letters.length; j++) {
-					next = arg.slice(j + 2);
+			var defaults = opts.default || {};
 
-					if (next === '-') {
-						setArg(letters[j], next, arg);
-						continue;
-					}
+			var argv = { _: [] };
 
-					if ((/[A-Za-z]/).test(letters[j]) && next[0] === '=') {
-						setArg(letters[j], next.slice(1), arg);
-						broken = true;
-						break;
-					}
+			function argDefined(key, arg) {
+				return (flags.allBools && (/^--[^=]+$/).test(arg))
+					|| flags.strings[key]
+					|| flags.bools[key]
+					|| aliases[key];
+			}
 
+			function setKey(obj, keys, value) {
+				var o = obj;
+				for (var i = 0; i < keys.length - 1; i++) {
+					var key = keys[i];
+					if (isConstructorOrProto(o, key)) { return; }
+					if (o[key] === undefined) { o[key] = {}; }
 					if (
-						(/[A-Za-z]/).test(letters[j])
-						&& (/-?\d+(\.\d*)?(e-?\d+)?$/).test(next)
+						o[key] === Object.prototype
+						|| o[key] === Number.prototype
+						|| o[key] === String.prototype
 					) {
-						setArg(letters[j], next, arg);
-						broken = true;
-						break;
+						o[key] = {};
 					}
-
-					if (letters[j + 1] && letters[j + 1].match(/\W/)) {
-						setArg(letters[j], arg.slice(j + 2), arg);
-						broken = true;
-						break;
-					} else {
-						setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
-					}
+					if (o[key] === Array.prototype) { o[key] = []; }
+					o = o[key];
 				}
 
-				key = arg.slice(-1)[0];
-				if (!broken && key !== '-') {
+				var lastKey = keys[keys.length - 1];
+				if (isConstructorOrProto(o, lastKey)) { return; }
+				if (
+					o === Object.prototype
+					|| o === Number.prototype
+					|| o === String.prototype
+				) {
+					o = {};
+				}
+				if (o === Array.prototype) { o = []; }
+				if (o[lastKey] === undefined || flags.bools[lastKey] || typeof o[lastKey] === 'boolean') {
+					o[lastKey] = value;
+				} else if (Array.isArray(o[lastKey])) {
+					o[lastKey].push(value);
+				} else {
+					o[lastKey] = [o[lastKey], value];
+				}
+			}
+
+			function setArg(key, val, arg) {
+				if (arg && flags.unknownFn && !argDefined(key, arg)) {
+					if (flags.unknownFn(arg) === false) { return; }
+				}
+
+				var value = !flags.strings[key] && isNumber(val)
+					? Number(val)
+					: val;
+				setKey(argv, key.split('.'), value);
+
+				(aliases[key] || []).forEach(function (x) {
+					setKey(argv, x.split('.'), value);
+				});
+			}
+
+			Object.keys(flags.bools).forEach(function (key) {
+				setArg(key, defaults[key] === undefined ? false : defaults[key]);
+			});
+
+			var notFlags = [];
+
+			if (args.indexOf('--') !== -1) {
+				notFlags = args.slice(args.indexOf('--') + 1);
+				args = args.slice(0, args.indexOf('--'));
+			}
+
+			for (var i = 0; i < args.length; i++) {
+				var arg = args[i];
+				var key;
+				var next;
+
+				if ((/^--.+=/).test(arg)) {
+					// Using [\s\S] instead of . because js doesn't support the
+					// 'dotall' regex modifier. See:
+					// http://stackoverflow.com/a/1068308/13216
+					var m = arg.match(/^--([^=]+)=([\s\S]*)$/);
+					key = m[1];
+					var value = m[2];
+					if (flags.bools[key]) {
+						value = value !== 'false';
+					}
+					setArg(key, value, arg);
+				} else if ((/^--no-.+/).test(arg)) {
+					key = arg.match(/^--no-(.+)/)[1];
+					setArg(key, false, arg);
+				} else if ((/^--.+/).test(arg)) {
+					key = arg.match(/^--(.+)/)[1];
+					next = args[i + 1];
 					if (
-						args[i + 1]
-						&& !(/^(-|--)[^-]/).test(args[i + 1])
+						next !== undefined
+						&& !(/^(-|--)[^-]/).test(next)
 						&& !flags.bools[key]
+						&& !flags.allBools
 						&& (aliases[key] ? !aliasIsBoolean(key) : true)
 					) {
-						setArg(key, args[i + 1], arg);
+						setArg(key, next, arg);
 						i += 1;
-					} else if (args[i + 1] && (/^(true|false)$/).test(args[i + 1])) {
-						setArg(key, args[i + 1] === 'true', arg);
+					} else if ((/^(true|false)$/).test(next)) {
+						setArg(key, next === 'true', arg);
 						i += 1;
 					} else {
 						setArg(key, flags.strings[key] ? '' : true, arg);
 					}
-				}
-			} else {
-				if (!flags.unknownFn || flags.unknownFn(arg) !== false) {
-					argv._.push(flags.strings._ || !isNumber(arg) ? arg : Number(arg));
-				}
-				if (opts.stopEarly) {
-					argv._.push.apply(argv._, args.slice(i + 1));
-					break;
+				} else if ((/^-[^-]+/).test(arg)) {
+					var letters = arg.slice(1, -1).split('');
+
+					var broken = false;
+					for (var j = 0; j < letters.length; j++) {
+						next = arg.slice(j + 2);
+
+						if (next === '-') {
+							setArg(letters[j], next, arg);
+							continue;
+						}
+
+						if ((/[A-Za-z]/).test(letters[j]) && next[0] === '=') {
+							setArg(letters[j], next.slice(1), arg);
+							broken = true;
+							break;
+						}
+
+						if (
+							(/[A-Za-z]/).test(letters[j])
+							&& (/-?\d+(\.\d*)?(e-?\d+)?$/).test(next)
+						) {
+							setArg(letters[j], next, arg);
+							broken = true;
+							break;
+						}
+
+						if (letters[j + 1] && letters[j + 1].match(/\W/)) {
+							setArg(letters[j], arg.slice(j + 2), arg);
+							broken = true;
+							break;
+						} else {
+							setArg(letters[j], flags.strings[letters[j]] ? '' : true, arg);
+						}
+					}
+
+					key = arg.slice(-1)[0];
+					if (!broken && key !== '-') {
+						if (
+							args[i + 1]
+							&& !(/^(-|--)[^-]/).test(args[i + 1])
+							&& !flags.bools[key]
+							&& (aliases[key] ? !aliasIsBoolean(key) : true)
+						) {
+							setArg(key, args[i + 1], arg);
+							i += 1;
+						} else if (args[i + 1] && (/^(true|false)$/).test(args[i + 1])) {
+							setArg(key, args[i + 1] === 'true', arg);
+							i += 1;
+						} else {
+							setArg(key, flags.strings[key] ? '' : true, arg);
+						}
+					}
+				} else {
+					if (!flags.unknownFn || flags.unknownFn(arg) !== false) {
+						argv._.push(flags.strings._ || !isNumber(arg) ? arg : Number(arg));
+					}
+					if (opts.stopEarly) {
+						argv._.push.apply(argv._, args.slice(i + 1));
+						break;
+					}
 				}
 			}
-		}
 
-		Object.keys(defaults).forEach(function (k) {
-			if (!hasKey(argv, k.split('.'))) {
-				setKey(argv, k.split('.'), defaults[k]);
+			Object.keys(defaults).forEach(function (k) {
+				if (!hasKey(argv, k.split('.'))) {
+					setKey(argv, k.split('.'), defaults[k]);
 
-				(aliases[k] || []).forEach(function (x) {
-					setKey(argv, x.split('.'), defaults[k]);
+					(aliases[k] || []).forEach(function (x) {
+						setKey(argv, x.split('.'), defaults[k]);
+					});
+				}
+			});
+
+			if (opts['--']) {
+				argv['--'] = notFlags.slice();
+			} else {
+				notFlags.forEach(function (k) {
+					argv._.push(k);
 				});
 			}
-		});
 
-		if (opts['--']) {
-			argv['--'] = notFlags.slice();
-		} else {
-			notFlags.forEach(function (k) {
-				argv._.push(k);
-			});
-		}
+			return argv;
+		};
+		return minimist$1;
+	}
 
-		return argv;
-	};
+	var minimistExports = requireMinimist();
+	var minimist = /*@__PURE__*/getDefaultExportFromCjs(minimistExports);
 
-	var minimist$1 = /*@__PURE__*/getDefaultExportFromCjs(minimist);
-
-	var rw = {};
+	var rw$1 = {};
 
 	var dash = {};
 
-	var decode$2 = function(options) {
-	  if (options) {
-	    if (typeof options === "string") return encoding(options);
-	    if (options.encoding !== null) return encoding(options.encoding);
-	  }
-	  return identity();
-	};
+	var decode;
+	var hasRequiredDecode;
 
-	function identity() {
-	  var chunks = [];
-	  return {
-	    push: function(chunk) { chunks.push(chunk); },
-	    value: function() { return Buffer.concat(chunks); }
-	  };
+	function requireDecode () {
+		if (hasRequiredDecode) return decode;
+		hasRequiredDecode = 1;
+		decode = function(options) {
+		  if (options) {
+		    if (typeof options === "string") return encoding(options);
+		    if (options.encoding !== null) return encoding(options.encoding);
+		  }
+		  return identity();
+		};
+
+		function identity() {
+		  var chunks = [];
+		  return {
+		    push: function(chunk) { chunks.push(chunk); },
+		    value: function() { return Buffer.concat(chunks); }
+		  };
+		}
+
+		function encoding(encoding) {
+		  var chunks = [];
+		  return {
+		    push: function(chunk) { chunks.push(chunk); },
+		    value: function() { return Buffer.concat(chunks).toString(encoding); }
+		  };
+		}
+		return decode;
 	}
 
-	function encoding(encoding) {
-	  var chunks = [];
-	  return {
-	    push: function(chunk) { chunks.push(chunk); },
-	    value: function() { return Buffer.concat(chunks).toString(encoding); }
-	  };
+	var readFile;
+	var hasRequiredReadFile;
+
+	function requireReadFile () {
+		if (hasRequiredReadFile) return readFile;
+		hasRequiredReadFile = 1;
+		var fs = require$$0,
+		    decode = requireDecode();
+
+		readFile = function(path, options, callback) {
+		  if (arguments.length < 3) callback = options, options = null;
+
+		  switch (path) {
+		    case "/dev/stdin": return readStream(process.stdin, options, callback);
+		  }
+
+		  fs.stat(path, function(error, stat) {
+		    if (error) return callback(error);
+		    if (stat.isFile()) return fs.readFile(path, options, callback);
+		    readStream(fs.createReadStream(path, options ? {flags: options.flag || "r"} : {}), options, callback); // N.B. flag / flags
+		  });
+		};
+
+		function readStream(stream, options, callback) {
+		  var decoder = decode(options);
+		  stream.on("error", callback);
+		  stream.on("data", function(d) { decoder.push(d); });
+		  stream.on("end", function() { callback(null, decoder.value()); });
+		}
+		return readFile;
 	}
 
-	var fs$3 = require$$0,
-	    decode$1 = decode$2;
+	var readFileSync;
+	var hasRequiredReadFileSync;
 
-	var readFile = function(path, options, callback) {
-	  if (arguments.length < 3) callback = options, options = null;
+	function requireReadFileSync () {
+		if (hasRequiredReadFileSync) return readFileSync;
+		hasRequiredReadFileSync = 1;
+		var fs = require$$0,
+		    decode = requireDecode();
 
-	  switch (path) {
-	    case "/dev/stdin": return readStream(process.stdin, options, callback);
-	  }
+		readFileSync = function(filename, options) {
+		  if (fs.statSync(filename).isFile()) {
+		    return fs.readFileSync(filename, options);
+		  } else {
+		    var fd = fs.openSync(filename, options && options.flag || "r"),
+		        decoder = decode(options);
 
-	  fs$3.stat(path, function(error, stat) {
-	    if (error) return callback(error);
-	    if (stat.isFile()) return fs$3.readFile(path, options, callback);
-	    readStream(fs$3.createReadStream(path, options ? {flags: options.flag || "r"} : {}), options, callback); // N.B. flag / flags
-	  });
-	};
+		    while (true) { // eslint-disable-line no-constant-condition
+		      try {
+		        var buffer = new Buffer(bufferSize),
+		            bytesRead = fs.readSync(fd, buffer, 0, bufferSize);
+		      } catch (e) {
+		        if (e.code === "EOF") break;
+		        fs.closeSync(fd);
+		        throw e;
+		      }
+		      if (bytesRead === 0) break;
+		      decoder.push(buffer.slice(0, bytesRead));
+		    }
 
-	function readStream(stream, options, callback) {
-	  var decoder = decode$1(options);
-	  stream.on("error", callback);
-	  stream.on("data", function(d) { decoder.push(d); });
-	  stream.on("end", function() { callback(null, decoder.value()); });
+		    fs.closeSync(fd);
+		    return decoder.value();
+		  }
+		};
+
+		var bufferSize = 1 << 16;
+		return readFileSync;
 	}
 
-	var fs$2 = require$$0,
-	    decode = decode$2;
+	var encode;
+	var hasRequiredEncode;
 
-	var readFileSync = function(filename, options) {
-	  if (fs$2.statSync(filename).isFile()) {
-	    return fs$2.readFileSync(filename, options);
-	  } else {
-	    var fd = fs$2.openSync(filename, options && options.flag || "r"),
-	        decoder = decode(options);
-
-	    while (true) { // eslint-disable-line no-constant-condition
-	      try {
-	        var buffer = new Buffer(bufferSize),
-	            bytesRead = fs$2.readSync(fd, buffer, 0, bufferSize);
-	      } catch (e) {
-	        if (e.code === "EOF") break;
-	        fs$2.closeSync(fd);
-	        throw e;
-	      }
-	      if (bytesRead === 0) break;
-	      decoder.push(buffer.slice(0, bytesRead));
-	    }
-
-	    fs$2.closeSync(fd);
-	    return decoder.value();
-	  }
-	};
-
-	var bufferSize = 1 << 16;
-
-	var encode$2 = function(data, options) {
-	  return typeof data === "string"
-	      ? new Buffer(data, typeof options === "string" ? options
-	          : options && options.encoding !== null ? options.encoding
-	          : "utf8")
-	      : data;
-	};
-
-	var fs$1 = require$$0,
-	    encode$1 = encode$2;
-
-	var writeFile = function(path, data, options, callback) {
-	  if (arguments.length < 4) callback = options, options = null;
-
-	  switch (path) {
-	    case "/dev/stdout": return writeStream(process.stdout, "write", data, options, callback);
-	    case "/dev/stderr": return writeStream(process.stderr, "write", data, options, callback);
-	  }
-
-	  fs$1.stat(path, function(error, stat) {
-	    if (error && error.code !== "ENOENT") return callback(error);
-	    if (stat && stat.isFile()) return fs$1.writeFile(path, data, options, callback);
-	    writeStream(fs$1.createWriteStream(path, options ? {flags: options.flag || "w"} : {}), "end", data, options, callback); // N.B. flag / flags
-	  });
-	};
-
-	function writeStream(stream, send, data, options, callback) {
-	  stream.on("error", function(error) { callback(error.code === "EPIPE" ? null : error); }); // ignore broken pipe, e.g., | head
-	  stream[send](encode$1(data, options), function(error) { callback(error && error.code === "EPIPE" ? null : error); });
+	function requireEncode () {
+		if (hasRequiredEncode) return encode;
+		hasRequiredEncode = 1;
+		encode = function(data, options) {
+		  return typeof data === "string"
+		      ? new Buffer(data, typeof options === "string" ? options
+		          : options && options.encoding !== null ? options.encoding
+		          : "utf8")
+		      : data;
+		};
+		return encode;
 	}
 
-	var fs = require$$0,
-	    encode = encode$2;
+	var writeFile;
+	var hasRequiredWriteFile;
 
-	var writeFileSync = function(filename, data, options) {
-	  var stat;
+	function requireWriteFile () {
+		if (hasRequiredWriteFile) return writeFile;
+		hasRequiredWriteFile = 1;
+		var fs = require$$0,
+		    encode = requireEncode();
 
-	  try {
-	    stat = fs.statSync(filename);
-	  } catch (error) {
-	    if (error.code !== "ENOENT") throw error;
-	  }
+		writeFile = function(path, data, options, callback) {
+		  if (arguments.length < 4) callback = options, options = null;
 
-	  if (!stat || stat.isFile()) {
-	    fs.writeFileSync(filename, data, options);
-	  } else {
-	    var fd = fs.openSync(filename, options && options.flag || "w"),
-	        bytesWritten = 0,
-	        bytesTotal = (data = encode(data, options)).length;
+		  switch (path) {
+		    case "/dev/stdout": return writeStream(process.stdout, "write", data, options, callback);
+		    case "/dev/stderr": return writeStream(process.stderr, "write", data, options, callback);
+		  }
 
-	    while (bytesWritten < bytesTotal) {
-	      try {
-	        bytesWritten += fs.writeSync(fd, data, bytesWritten, bytesTotal - bytesWritten, null);
-	      } catch (error) {
-	        if (error.code === "EPIPE") break; // ignore broken pipe, e.g., | head
-	        fs.closeSync(fd);
-	        throw error;
-	      }
-	    }
+		  fs.stat(path, function(error, stat) {
+		    if (error && error.code !== "ENOENT") return callback(error);
+		    if (stat && stat.isFile()) return fs.writeFile(path, data, options, callback);
+		    writeStream(fs.createWriteStream(path, options ? {flags: options.flag || "w"} : {}), "end", data, options, callback); // N.B. flag / flags
+		  });
+		};
 
-	    fs.closeSync(fd);
-	  }
-	};
-
-	var slice = Array.prototype.slice;
-
-	function dashify(method, file) {
-	  return function(path) {
-	    var argv = arguments;
-	    if (path == "-") (argv = slice.call(argv)).splice(0, 1, file);
-	    return method.apply(null, argv);
-	  };
+		function writeStream(stream, send, data, options, callback) {
+		  stream.on("error", function(error) { callback(error.code === "EPIPE" ? null : error); }); // ignore broken pipe, e.g., | head
+		  stream[send](encode(data, options), function(error) { callback(error && error.code === "EPIPE" ? null : error); });
+		}
+		return writeFile;
 	}
 
-	dash.readFile = dashify(readFile, "/dev/stdin");
-	dash.readFileSync = dashify(readFileSync, "/dev/stdin");
-	dash.writeFile = dashify(writeFile, "/dev/stdout");
-	dash.writeFileSync = dashify(writeFileSync, "/dev/stdout");
+	var writeFileSync;
+	var hasRequiredWriteFileSync;
 
-	rw.dash = dash;
-	rw.readFile = readFile;
-	rw.readFileSync = readFileSync;
-	rw.writeFile = writeFile;
-	rw.writeFileSync = writeFileSync;
+	function requireWriteFileSync () {
+		if (hasRequiredWriteFileSync) return writeFileSync;
+		hasRequiredWriteFileSync = 1;
+		var fs = require$$0,
+		    encode = requireEncode();
+
+		writeFileSync = function(filename, data, options) {
+		  var stat;
+
+		  try {
+		    stat = fs.statSync(filename);
+		  } catch (error) {
+		    if (error.code !== "ENOENT") throw error;
+		  }
+
+		  if (!stat || stat.isFile()) {
+		    fs.writeFileSync(filename, data, options);
+		  } else {
+		    var fd = fs.openSync(filename, options && options.flag || "w"),
+		        bytesWritten = 0,
+		        bytesTotal = (data = encode(data, options)).length;
+
+		    while (bytesWritten < bytesTotal) {
+		      try {
+		        bytesWritten += fs.writeSync(fd, data, bytesWritten, bytesTotal - bytesWritten, null);
+		      } catch (error) {
+		        if (error.code === "EPIPE") break; // ignore broken pipe, e.g., | head
+		        fs.closeSync(fd);
+		        throw error;
+		      }
+		    }
+
+		    fs.closeSync(fd);
+		  }
+		};
+		return writeFileSync;
+	}
+
+	var hasRequiredDash;
+
+	function requireDash () {
+		if (hasRequiredDash) return dash;
+		hasRequiredDash = 1;
+		var slice = Array.prototype.slice;
+
+		function dashify(method, file) {
+		  return function(path) {
+		    var argv = arguments;
+		    if (path == "-") (argv = slice.call(argv)).splice(0, 1, file);
+		    return method.apply(null, argv);
+		  };
+		}
+
+		dash.readFile = dashify(requireReadFile(), "/dev/stdin");
+		dash.readFileSync = dashify(requireReadFileSync(), "/dev/stdin");
+		dash.writeFile = dashify(requireWriteFile(), "/dev/stdout");
+		dash.writeFileSync = dashify(requireWriteFileSync(), "/dev/stdout");
+		return dash;
+	}
+
+	var hasRequiredRw;
+
+	function requireRw () {
+		if (hasRequiredRw) return rw$1;
+		hasRequiredRw = 1;
+		rw$1.dash = requireDash();
+		rw$1.readFile = requireReadFile();
+		rw$1.readFileSync = requireReadFileSync();
+		rw$1.writeFile = requireWriteFile();
+		rw$1.writeFileSync = requireWriteFileSync();
+		return rw$1;
+	}
+
+	var rwExports = requireRw();
+	var rw = /*@__PURE__*/getDefaultExportFromCjs(rwExports);
 
 	// Note: Do not inherit from Error. It breaks when transpiling to ES5.
 	class ValidationError {
@@ -539,24 +614,27 @@
 	const StringType = { kind: 'string' };
 	const BooleanType = { kind: 'boolean' };
 	const ColorType = { kind: 'color' };
+	const ProjectionDefinitionType = { kind: 'projectionDefinition' };
 	const ObjectType = { kind: 'object' };
 	const ValueType = { kind: 'value' };
 	const ErrorType = { kind: 'error' };
 	const CollatorType = { kind: 'collator' };
 	const FormattedType = { kind: 'formatted' };
 	const PaddingType = { kind: 'padding' };
+	const ColorArrayType = { kind: 'colorArray' };
+	const NumberArrayType = { kind: 'numberArray' };
 	const ResolvedImageType = { kind: 'resolvedImage' };
 	const VariableAnchorOffsetCollectionType = { kind: 'variableAnchorOffsetCollection' };
-	function array$1(itemType, N) {
+	function array(itemType, N) {
 	    return {
 	        kind: 'array',
 	        itemType,
 	        N
 	    };
 	}
-	function toString$1(type) {
+	function typeToString(type) {
 	    if (type.kind === 'array') {
-	        const itemType = toString$1(type.itemType);
+	        const itemType = typeToString(type.itemType);
 	        return typeof type.N === 'number' ?
 	            `array<${itemType}, ${type.N}>` :
 	            type.itemType.kind === 'value' ? 'array' : `array<${itemType}>`;
@@ -571,10 +649,13 @@
 	    StringType,
 	    BooleanType,
 	    ColorType,
+	    ProjectionDefinitionType,
 	    FormattedType,
 	    ObjectType,
-	    array$1(ValueType),
+	    array(ValueType),
 	    PaddingType,
+	    NumberArrayType,
+	    ColorArrayType,
 	    ResolvedImageType,
 	    VariableAnchorOffsetCollectionType
 	];
@@ -605,7 +686,7 @@
 	            }
 	        }
 	    }
-	    return `Expected ${toString$1(expected)} but found ${toString$1(t)} instead.`;
+	    return `Expected ${typeToString(expected)} but found ${typeToString(t)} instead.`;
 	}
 	function isValidType(provided, allowedTypes) {
 	    return allowedTypes.some(t => t.kind === provided.kind);
@@ -725,6 +806,15 @@
 	    return [f(0), f(8), f(4), alpha];
 	}
 
+	// polyfill for Object.hasOwn
+	const hasOwnProperty = Object.hasOwn ||
+	    function hasOwnProperty(object, key) {
+	        return Object.prototype.hasOwnProperty.call(object, key);
+	    };
+	function getOwn(object, key) {
+	    return hasOwnProperty(object, key) ? object[key] : undefined;
+	}
+
 	/**
 	 * CSS color parser compliant with CSS Color 4 Specification.
 	 * Supports: named colors, `transparent` keyword, all rgb hex notations,
@@ -760,7 +850,7 @@
 	        return [0, 0, 0, 0];
 	    }
 	    // 'white', 'black', 'blue'
-	    const namedColorsMatch = namedColors[input];
+	    const namedColorsMatch = getOwn(namedColors, input);
 	    if (namedColorsMatch) {
 	        const [r, g, b] = namedColorsMatch;
 	        return [r / 255, g / 255, b / 255, 1];
@@ -1033,6 +1123,15 @@
 	    yellowgreen: [154, 205, 50],
 	};
 
+	function interpolateNumber(from, to, t) {
+	    return from + t * (to - from);
+	}
+	function interpolateArray(from, to, t) {
+	    return from.map((d, i) => {
+	        return interpolateNumber(d, to[i], t);
+	    });
+	}
+
 	/**
 	 * Color representation used by WebGL.
 	 * Defined in sRGB color space and pre-blended with alpha.
@@ -1154,14 +1253,60 @@
 	        const [r, g, b, a] = this.rgb;
 	        return `rgba(${[r, g, b].map(n => Math.round(n * 255)).join(',')},${a})`;
 	    }
+	    static interpolate(from, to, t, spaceKey = 'rgb') {
+	        switch (spaceKey) {
+	            case 'rgb': {
+	                const [r, g, b, alpha] = interpolateArray(from.rgb, to.rgb, t);
+	                return new Color(r, g, b, alpha, false);
+	            }
+	            case 'hcl': {
+	                const [hue0, chroma0, light0, alphaF] = from.hcl;
+	                const [hue1, chroma1, light1, alphaT] = to.hcl;
+	                // https://github.com/gka/chroma.js/blob/cd1b3c0926c7a85cbdc3b1453b3a94006de91a92/src/interpolator/_hsx.js
+	                let hue, chroma;
+	                if (!isNaN(hue0) && !isNaN(hue1)) {
+	                    let dh = hue1 - hue0;
+	                    if (hue1 > hue0 && dh > 180) {
+	                        dh -= 360;
+	                    }
+	                    else if (hue1 < hue0 && hue0 - hue1 > 180) {
+	                        dh += 360;
+	                    }
+	                    hue = hue0 + t * dh;
+	                }
+	                else if (!isNaN(hue0)) {
+	                    hue = hue0;
+	                    if (light1 === 1 || light1 === 0)
+	                        chroma = chroma0;
+	                }
+	                else if (!isNaN(hue1)) {
+	                    hue = hue1;
+	                    if (light0 === 1 || light0 === 0)
+	                        chroma = chroma1;
+	                }
+	                else {
+	                    hue = NaN;
+	                }
+	                const [r, g, b, alpha] = hclToRgb([
+	                    hue,
+	                    chroma !== null && chroma !== void 0 ? chroma : interpolateNumber(chroma0, chroma1, t),
+	                    interpolateNumber(light0, light1, t),
+	                    interpolateNumber(alphaF, alphaT, t),
+	                ]);
+	                return new Color(r, g, b, alpha, false);
+	            }
+	            case 'lab': {
+	                const [r, g, b, alpha] = labToRgb(interpolateArray(from.lab, to.lab, t));
+	                return new Color(r, g, b, alpha, false);
+	            }
+	        }
+	    }
 	}
 	Color.black = new Color(0, 0, 0, 1);
 	Color.white = new Color(1, 1, 1, 1);
 	Color.transparent = new Color(0, 0, 0, 0);
 	Color.red = new Color(1, 0, 0, 1);
 
-	// Flow type declarations for Intl cribbed from
-	// https://github.com/facebook/flow/issues/1270
 	class Collator {
 	    constructor(caseSensitive, diacriticSensitive, locale) {
 	        if (caseSensitive)
@@ -1182,13 +1327,15 @@
 	    }
 	}
 
+	const VERTICAL_ALIGN_OPTIONS = ['bottom', 'center', 'top'];
 	class FormattedSection {
-	    constructor(text, image, scale, fontStack, textColor) {
+	    constructor(text, image, scale, fontStack, textColor, verticalAlign) {
 	        this.text = text;
 	        this.image = image;
 	        this.scale = scale;
 	        this.fontStack = fontStack;
 	        this.textColor = textColor;
+	        this.verticalAlign = verticalAlign;
 	    }
 	}
 	class Formatted {
@@ -1196,7 +1343,7 @@
 	        this.sections = sections;
 	    }
 	    static fromString(unformatted) {
-	        return new Formatted([new FormattedSection(unformatted, null, null, null, null)]);
+	        return new Formatted([new FormattedSection(unformatted, null, null, null, null, null)]);
 	    }
 	    isEmpty() {
 	        if (this.sections.length === 0)
@@ -1270,6 +1417,116 @@
 	    toString() {
 	        return JSON.stringify(this.values);
 	    }
+	    static interpolate(from, to, t) {
+	        return new Padding(interpolateArray(from.values, to.values, t));
+	    }
+	}
+
+	/**
+	 * An array of numbers. Create instances from
+	 * bare arrays or numeric values using the static method `NumberArray.parse`.
+	 * @private
+	 */
+	class NumberArray {
+	    constructor(values) {
+	        this.values = values.slice();
+	    }
+	    /**
+	     * Numeric NumberArray values
+	     * @param input A NumberArray value
+	     * @returns A `NumberArray` instance, or `undefined` if the input is not a valid NumberArray value.
+	     */
+	    static parse(input) {
+	        if (input instanceof NumberArray) {
+	            return input;
+	        }
+	        // Backwards compatibility (e.g. hillshade-illumination-direction): bare number is treated the same as array with single value.
+	        if (typeof input === 'number') {
+	            return new NumberArray([input]);
+	        }
+	        if (!Array.isArray(input)) {
+	            return undefined;
+	        }
+	        for (const val of input) {
+	            if (typeof val !== 'number') {
+	                return undefined;
+	            }
+	        }
+	        return new NumberArray(input);
+	    }
+	    toString() {
+	        return JSON.stringify(this.values);
+	    }
+	    static interpolate(from, to, t) {
+	        return new NumberArray(interpolateArray(from.values, to.values, t));
+	    }
+	}
+
+	/**
+	 * An array of colors. Create instances from
+	 * bare arrays or strings using the static method `ColorArray.parse`.
+	 * @private
+	 */
+	class ColorArray {
+	    constructor(values) {
+	        this.values = values.slice();
+	    }
+	    /**
+	     * ColorArray values
+	     * @param input A ColorArray value
+	     * @returns A `ColorArray` instance, or `undefined` if the input is not a valid ColorArray value.
+	     */
+	    static parse(input) {
+	        if (input instanceof ColorArray) {
+	            return input;
+	        }
+	        // Backwards compatibility (e.g. hillshade-shadow-color): bare Color is treated the same as array with single value.
+	        if (typeof input === 'string') {
+	            const parsed_val = Color.parse(input);
+	            if (!parsed_val) {
+	                return undefined;
+	            }
+	            return new ColorArray([parsed_val]);
+	        }
+	        if (!Array.isArray(input)) {
+	            return undefined;
+	        }
+	        const colors = [];
+	        for (const val of input) {
+	            if (typeof val !== 'string') {
+	                return undefined;
+	            }
+	            const parsed_val = Color.parse(val);
+	            if (!parsed_val) {
+	                return undefined;
+	            }
+	            colors.push(parsed_val);
+	        }
+	        return new ColorArray(colors);
+	    }
+	    toString() {
+	        return JSON.stringify(this.values);
+	    }
+	    static interpolate(from, to, t, spaceKey = 'rgb') {
+	        const colors = [];
+	        if (from.values.length != to.values.length) {
+	            throw new Error(`colorArray: Arrays have mismatched length (${from.values.length} vs. ${to.values.length}), cannot interpolate.`);
+	        }
+	        for (let i = 0; i < from.values.length; i++) {
+	            colors.push(Color.interpolate(from.values[i], to.values[i], t, spaceKey));
+	        }
+	        return new ColorArray(colors);
+	    }
+	}
+
+	class RuntimeError extends Error {
+	    constructor(message) {
+	        super(message);
+	        this.name = 'RuntimeError';
+	    }
+	    toJSON() {
+	        return this.message;
+	    }
 	}
 
 	/** Set of valid anchor positions, as a set for validation */
@@ -1308,6 +1565,26 @@
 	    toString() {
 	        return JSON.stringify(this.values);
 	    }
+	    static interpolate(from, to, t) {
+	        const fromValues = from.values;
+	        const toValues = to.values;
+	        if (fromValues.length !== toValues.length) {
+	            throw new RuntimeError(`Cannot interpolate values of different length. from: ${from.toString()}, to: ${to.toString()}`);
+	        }
+	        const output = [];
+	        for (let i = 0; i < fromValues.length; i += 2) {
+	            // Anchor entries must match
+	            if (fromValues[i] !== toValues[i]) {
+	                throw new RuntimeError(`Cannot interpolate values containing mismatched anchors. from[${i}]: ${fromValues[i]}, to[${i}]: ${toValues[i]}`);
+	            }
+	            output.push(fromValues[i]);
+	            // Interpolate the offset values for each anchor
+	            const [fx, fy] = fromValues[i + 1];
+	            const [tx, ty] = toValues[i + 1];
+	            output.push([interpolateNumber(fx, tx, t), interpolateNumber(fy, ty, t)]);
+	        }
+	        return new VariableAnchorOffsetCollection(output);
+	    }
 	}
 
 	class ResolvedImage {
@@ -1322,6 +1599,32 @@
 	        if (!name)
 	            return null; // treat empty values as no image
 	        return new ResolvedImage({ name, available: false });
+	    }
+	}
+
+	class ProjectionDefinition {
+	    constructor(from, to, transition) {
+	        this.from = from;
+	        this.to = to;
+	        this.transition = transition;
+	    }
+	    static interpolate(from, to, t) {
+	        return new ProjectionDefinition(from, to, t);
+	    }
+	    static parse(input) {
+	        if (input instanceof ProjectionDefinition) {
+	            return input;
+	        }
+	        if (Array.isArray(input) && input.length === 3 && typeof input[0] === 'string' && typeof input[1] === 'string' && typeof input[2] === 'number') {
+	            return new ProjectionDefinition(input[0], input[1], input[2]);
+	        }
+	        if (typeof input === 'object' && typeof input.from === 'string' && typeof input.to === 'string' && typeof input.transition === 'number') {
+	            return new ProjectionDefinition(input.from, input.to, input.transition);
+	        }
+	        if (typeof input === 'string') {
+	            return new ProjectionDefinition(input, input, 1);
+	        }
+	        return undefined;
 	    }
 	}
 
@@ -1342,10 +1645,13 @@
 	        typeof mixed === 'string' ||
 	        typeof mixed === 'boolean' ||
 	        typeof mixed === 'number' ||
+	        mixed instanceof ProjectionDefinition ||
 	        mixed instanceof Color ||
 	        mixed instanceof Collator ||
 	        mixed instanceof Formatted ||
 	        mixed instanceof Padding ||
+	        mixed instanceof NumberArray ||
+	        mixed instanceof ColorArray ||
 	        mixed instanceof VariableAnchorOffsetCollection ||
 	        mixed instanceof ResolvedImage) {
 	        return true;
@@ -1386,6 +1692,9 @@
 	    else if (value instanceof Color) {
 	        return ColorType;
 	    }
+	    else if (value instanceof ProjectionDefinition) {
+	        return ProjectionDefinitionType;
+	    }
 	    else if (value instanceof Collator) {
 	        return CollatorType;
 	    }
@@ -1394,6 +1703,12 @@
 	    }
 	    else if (value instanceof Padding) {
 	        return PaddingType;
+	    }
+	    else if (value instanceof NumberArray) {
+	        return NumberArrayType;
+	    }
+	    else if (value instanceof ColorArray) {
+	        return ColorArrayType;
 	    }
 	    else if (value instanceof VariableAnchorOffsetCollection) {
 	        return VariableAnchorOffsetCollectionType;
@@ -1417,13 +1732,13 @@
 	                break;
 	            }
 	        }
-	        return array$1(itemType || ValueType, length);
+	        return array(itemType || ValueType, length);
 	    }
 	    else {
 	        return ObjectType;
 	    }
 	}
-	function toString(value) {
+	function valueToString(value) {
 	    const type = typeof value;
 	    if (value === null) {
 	        return '';
@@ -1431,7 +1746,7 @@
 	    else if (type === 'string' || type === 'number' || type === 'boolean') {
 	        return String(value);
 	    }
-	    else if (value instanceof Color || value instanceof Formatted || value instanceof Padding || value instanceof VariableAnchorOffsetCollection || value instanceof ResolvedImage) {
+	    else if (value instanceof Color || value instanceof ProjectionDefinition || value instanceof Formatted || value instanceof Padding || value instanceof NumberArray || value instanceof ColorArray || value instanceof VariableAnchorOffsetCollection || value instanceof ResolvedImage) {
 	        return value.toString();
 	    }
 	    else {
@@ -1468,16 +1783,6 @@
 	    eachChild() { }
 	    outputDefined() {
 	        return true;
-	    }
-	}
-
-	class RuntimeError {
-	    constructor(message) {
-	        this.name = 'ExpressionEvaluationError';
-	        this.message = message;
-	    }
-	    toJSON() {
-	        return this.message;
 	    }
 	}
 
@@ -1521,7 +1826,7 @@
 	                N = args[2];
 	                i++;
 	            }
-	            type = array$1(itemType, N);
+	            type = array(itemType, N);
 	        }
 	        else {
 	            if (!types$1[name])
@@ -1545,7 +1850,7 @@
 	                return value;
 	            }
 	            else if (i === this.args.length - 1) {
-	                throw new RuntimeError(`Expected value to be of type ${toString$1(this.type)}, but found ${toString$1(typeOf(value))} instead.`);
+	                throw new RuntimeError(`Expected value to be of type ${typeToString(this.type)}, but found ${typeToString(typeOf(value))} instead.`);
 	            }
 	        }
 	        throw new Error();
@@ -1614,7 +1919,7 @@
 	                    }
 	                    else if (Array.isArray(input)) {
 	                        if (input.length < 3 || input.length > 4) {
-	                            error = `Invalid rbga value ${JSON.stringify(input)}: expected an array containing either three or four numeric values.`;
+	                            error = `Invalid rgba value ${JSON.stringify(input)}: expected an array containing either three or four numeric values.`;
 	                        }
 	                        else {
 	                            error = validateRGBA(input[0], input[1], input[2], input[3]);
@@ -1636,6 +1941,28 @@
 	                    }
 	                }
 	                throw new RuntimeError(`Could not parse padding from value '${typeof input === 'string' ? input : JSON.stringify(input)}'`);
+	            }
+	            case 'numberArray': {
+	                let input;
+	                for (const arg of this.args) {
+	                    input = arg.evaluate(ctx);
+	                    const val = NumberArray.parse(input);
+	                    if (val) {
+	                        return val;
+	                    }
+	                }
+	                throw new RuntimeError(`Could not parse numberArray from value '${typeof input === 'string' ? input : JSON.stringify(input)}'`);
+	            }
+	            case 'colorArray': {
+	                let input;
+	                for (const arg of this.args) {
+	                    input = arg.evaluate(ctx);
+	                    const val = ColorArray.parse(input);
+	                    if (val) {
+	                        return val;
+	                    }
+	                }
+	                throw new RuntimeError(`Could not parse colorArray from value '${typeof input === 'string' ? input : JSON.stringify(input)}'`);
 	            }
 	            case 'variableAnchorOffsetCollection': {
 	                let input;
@@ -1664,11 +1991,13 @@
 	            case 'formatted':
 	                // There is no explicit 'to-formatted' but this coercion can be implicitly
 	                // created by properties that expect the 'formatted' type.
-	                return Formatted.fromString(toString(this.args[0].evaluate(ctx)));
+	                return Formatted.fromString(valueToString(this.args[0].evaluate(ctx)));
 	            case 'resolvedImage':
-	                return ResolvedImage.fromString(toString(this.args[0].evaluate(ctx)));
+	                return ResolvedImage.fromString(valueToString(this.args[0].evaluate(ctx)));
+	            case 'projectionDefinition':
+	                return this.args[0].evaluate(ctx);
 	            default:
-	                return toString(this.args[0].evaluate(ctx));
+	                return valueToString(this.args[0].evaluate(ctx));
 	        }
 	    }
 	    eachChild(fn) {
@@ -1686,7 +2015,7 @@
 	        this.feature = null;
 	        this.featureState = null;
 	        this.formattedSection = null;
-	        this._parseColorCache = {};
+	        this._parseColorCache = new Map();
 	        this.availableImages = null;
 	        this.canonical = null;
 	    }
@@ -1706,9 +2035,10 @@
 	        return this.feature && this.feature.properties || {};
 	    }
 	    parseColor(input) {
-	        let cached = this._parseColorCache[input];
+	        let cached = this._parseColorCache.get(input);
 	        if (!cached) {
-	            cached = this._parseColorCache[input] = Color.parse(input);
+	            cached = Color.parse(input);
+	            this._parseColorCache.set(input, cached);
 	        }
 	        return cached;
 	    }
@@ -1784,13 +2114,11 @@
 	                    if ((expected.kind === 'string' || expected.kind === 'number' || expected.kind === 'boolean' || expected.kind === 'object' || expected.kind === 'array') && actual.kind === 'value') {
 	                        parsed = annotate(parsed, expected, options.typeAnnotation || 'assert');
 	                    }
-	                    else if ((expected.kind === 'color' || expected.kind === 'formatted' || expected.kind === 'resolvedImage') && (actual.kind === 'value' || actual.kind === 'string')) {
-	                        parsed = annotate(parsed, expected, options.typeAnnotation || 'coerce');
-	                    }
-	                    else if (expected.kind === 'padding' && (actual.kind === 'value' || actual.kind === 'number' || actual.kind === 'array')) {
-	                        parsed = annotate(parsed, expected, options.typeAnnotation || 'coerce');
-	                    }
-	                    else if (expected.kind === 'variableAnchorOffsetCollection' && (actual.kind === 'value' || actual.kind === 'array')) {
+	                    else if (('projectionDefinition' === expected.kind && ['string', 'array'].includes(actual.kind)) ||
+	                        ((['color', 'formatted', 'resolvedImage'].includes(expected.kind)) && ['value', 'string'].includes(actual.kind)) ||
+	                        ((['padding', 'numberArray'].includes(expected.kind)) && ['value', 'number', 'array'].includes(actual.kind)) ||
+	                        ('colorArray' === expected.kind && ['value', 'string', 'array'].includes(actual.kind)) ||
+	                        ('variableAnchorOffsetCollection' === expected.kind && ['value', 'array'].includes(actual.kind))) {
 	                        parsed = annotate(parsed, expected, options.typeAnnotation || 'coerce');
 	                    }
 	                    else if (this.checkSubtype(expected, actual)) {
@@ -1940,7 +2268,7 @@
 	        if (args.length !== 3)
 	            return context.error(`Expected 2 arguments, but found ${args.length - 1} instead.`);
 	        const index = context.parse(args[1], 1, NumberType);
-	        const input = context.parse(args[2], 2, array$1(context.expectedType || ValueType));
+	        const input = context.parse(args[2], 2, array(context.expectedType || ValueType));
 	        if (!index || !input)
 	            return null;
 	        const t = input.type;
@@ -1984,7 +2312,7 @@
 	        if (!needle || !haystack)
 	            return null;
 	        if (!isValidType(needle.type, [BooleanType, StringType, NumberType, NullType, ValueType])) {
-	            return context.error(`Expected first argument to be of type boolean, string, number or null, but found ${toString$1(needle.type)} instead`);
+	            return context.error(`Expected first argument to be of type boolean, string, number or null, but found ${typeToString(needle.type)} instead`);
 	        }
 	        return new In(needle, haystack);
 	    }
@@ -1994,10 +2322,10 @@
 	        if (!haystack)
 	            return false;
 	        if (!isValidNativeType(needle, ['boolean', 'string', 'number', 'null'])) {
-	            throw new RuntimeError(`Expected first argument to be of type boolean, string, number or null, but found ${toString$1(typeOf(needle))} instead.`);
+	            throw new RuntimeError(`Expected first argument to be of type boolean, string, number or null, but found ${typeToString(typeOf(needle))} instead.`);
 	        }
 	        if (!isValidNativeType(haystack, ['string', 'array'])) {
-	            throw new RuntimeError(`Expected second argument to be of type array or string, but found ${toString$1(typeOf(haystack))} instead.`);
+	            throw new RuntimeError(`Expected second argument to be of type array or string, but found ${typeToString(typeOf(haystack))} instead.`);
 	        }
 	        return haystack.indexOf(needle) >= 0;
 	    }
@@ -2019,14 +2347,14 @@
 	    }
 	    static parse(args, context) {
 	        if (args.length <= 2 || args.length >= 5) {
-	            return context.error(`Expected 3 or 4 arguments, but found ${args.length - 1} instead.`);
+	            return context.error(`Expected 2 or 3 arguments, but found ${args.length - 1} instead.`);
 	        }
 	        const needle = context.parse(args[1], 1, ValueType);
 	        const haystack = context.parse(args[2], 2, ValueType);
 	        if (!needle || !haystack)
 	            return null;
 	        if (!isValidType(needle.type, [BooleanType, StringType, NumberType, NullType, ValueType])) {
-	            return context.error(`Expected first argument to be of type boolean, string, number or null, but found ${toString$1(needle.type)} instead`);
+	            return context.error(`Expected first argument to be of type boolean, string, number or null, but found ${typeToString(needle.type)} instead`);
 	        }
 	        if (args.length === 4) {
 	            const fromIndex = context.parse(args[3], 3, NumberType);
@@ -2042,16 +2370,28 @@
 	        const needle = this.needle.evaluate(ctx);
 	        const haystack = this.haystack.evaluate(ctx);
 	        if (!isValidNativeType(needle, ['boolean', 'string', 'number', 'null'])) {
-	            throw new RuntimeError(`Expected first argument to be of type boolean, string, number or null, but found ${toString$1(typeOf(needle))} instead.`);
+	            throw new RuntimeError(`Expected first argument to be of type boolean, string, number or null, but found ${typeToString(typeOf(needle))} instead.`);
 	        }
-	        if (!isValidNativeType(haystack, ['string', 'array'])) {
-	            throw new RuntimeError(`Expected second argument to be of type array or string, but found ${toString$1(typeOf(haystack))} instead.`);
-	        }
+	        let fromIndex;
 	        if (this.fromIndex) {
-	            const fromIndex = this.fromIndex.evaluate(ctx);
+	            fromIndex = this.fromIndex.evaluate(ctx);
+	        }
+	        if (isValidNativeType(haystack, ['string'])) {
+	            const rawIndex = haystack.indexOf(needle, fromIndex);
+	            if (rawIndex === -1) {
+	                return -1;
+	            }
+	            else {
+	                // The index may be affected by surrogate pairs, so get the length of the preceding substring.
+	                return [...haystack.slice(0, rawIndex)].length;
+	            }
+	        }
+	        else if (isValidNativeType(haystack, ['array'])) {
 	            return haystack.indexOf(needle, fromIndex);
 	        }
-	        return haystack.indexOf(needle);
+	        else {
+	            throw new RuntimeError(`Expected second argument to be of type array or string, but found ${typeToString(typeOf(haystack))} instead.`);
+	        }
 	    }
 	    eachChild(fn) {
 	        fn(this.needle);
@@ -2211,14 +2551,14 @@
 	    }
 	    static parse(args, context) {
 	        if (args.length <= 2 || args.length >= 5) {
-	            return context.error(`Expected 3 or 4 arguments, but found ${args.length - 1} instead.`);
+	            return context.error(`Expected 2 or 3 arguments, but found ${args.length - 1} instead.`);
 	        }
 	        const input = context.parse(args[1], 1, ValueType);
 	        const beginIndex = context.parse(args[2], 2, NumberType);
 	        if (!input || !beginIndex)
 	            return null;
-	        if (!isValidType(input.type, [array$1(ValueType), StringType, ValueType])) {
-	            return context.error(`Expected first argument to be of type array or string, but found ${toString$1(input.type)} instead`);
+	        if (!isValidType(input.type, [array(ValueType), StringType, ValueType])) {
+	            return context.error(`Expected first argument to be of type array or string, but found ${typeToString(input.type)} instead`);
 	        }
 	        if (args.length === 4) {
 	            const endIndex = context.parse(args[3], 3, NumberType);
@@ -2233,14 +2573,20 @@
 	    evaluate(ctx) {
 	        const input = this.input.evaluate(ctx);
 	        const beginIndex = this.beginIndex.evaluate(ctx);
-	        if (!isValidNativeType(input, ['string', 'array'])) {
-	            throw new RuntimeError(`Expected first argument to be of type array or string, but found ${toString$1(typeOf(input))} instead.`);
-	        }
+	        let endIndex;
 	        if (this.endIndex) {
-	            const endIndex = this.endIndex.evaluate(ctx);
+	            endIndex = this.endIndex.evaluate(ctx);
+	        }
+	        if (isValidNativeType(input, ['string'])) {
+	            // Indices may be affected by surrogate pairs.
+	            return [...input].slice(beginIndex, endIndex).join('');
+	        }
+	        else if (isValidNativeType(input, ['array'])) {
 	            return input.slice(beginIndex, endIndex);
 	        }
-	        return input.slice(beginIndex);
+	        else {
+	            throw new RuntimeError(`Expected first argument to be of type array or string, but found ${typeToString(typeOf(input))} instead.`);
+	        }
 	    }
 	    eachChild(fn) {
 	        fn(this.input);
@@ -2357,171 +2703,94 @@
 	    }
 	}
 
-	var unitbezier = UnitBezier;
+	var unitbezier;
+	var hasRequiredUnitbezier;
 
-	function UnitBezier(p1x, p1y, p2x, p2y) {
-	    // Calculate the polynomial coefficients, implicit first and last control points are (0,0) and (1,1).
-	    this.cx = 3.0 * p1x;
-	    this.bx = 3.0 * (p2x - p1x) - this.cx;
-	    this.ax = 1.0 - this.cx - this.bx;
+	function requireUnitbezier () {
+		if (hasRequiredUnitbezier) return unitbezier;
+		hasRequiredUnitbezier = 1;
 
-	    this.cy = 3.0 * p1y;
-	    this.by = 3.0 * (p2y - p1y) - this.cy;
-	    this.ay = 1.0 - this.cy - this.by;
+		unitbezier = UnitBezier;
 
-	    this.p1x = p1x;
-	    this.p1y = p1y;
-	    this.p2x = p2x;
-	    this.p2y = p2y;
+		function UnitBezier(p1x, p1y, p2x, p2y) {
+		    // Calculate the polynomial coefficients, implicit first and last control points are (0,0) and (1,1).
+		    this.cx = 3.0 * p1x;
+		    this.bx = 3.0 * (p2x - p1x) - this.cx;
+		    this.ax = 1.0 - this.cx - this.bx;
+
+		    this.cy = 3.0 * p1y;
+		    this.by = 3.0 * (p2y - p1y) - this.cy;
+		    this.ay = 1.0 - this.cy - this.by;
+
+		    this.p1x = p1x;
+		    this.p1y = p1y;
+		    this.p2x = p2x;
+		    this.p2y = p2y;
+		}
+
+		UnitBezier.prototype = {
+		    sampleCurveX: function (t) {
+		        // `ax t^3 + bx t^2 + cx t' expanded using Horner's rule.
+		        return ((this.ax * t + this.bx) * t + this.cx) * t;
+		    },
+
+		    sampleCurveY: function (t) {
+		        return ((this.ay * t + this.by) * t + this.cy) * t;
+		    },
+
+		    sampleCurveDerivativeX: function (t) {
+		        return (3.0 * this.ax * t + 2.0 * this.bx) * t + this.cx;
+		    },
+
+		    solveCurveX: function (x, epsilon) {
+		        if (epsilon === undefined) epsilon = 1e-6;
+
+		        if (x < 0.0) return 0.0;
+		        if (x > 1.0) return 1.0;
+
+		        var t = x;
+
+		        // First try a few iterations of Newton's method - normally very fast.
+		        for (var i = 0; i < 8; i++) {
+		            var x2 = this.sampleCurveX(t) - x;
+		            if (Math.abs(x2) < epsilon) return t;
+
+		            var d2 = this.sampleCurveDerivativeX(t);
+		            if (Math.abs(d2) < 1e-6) break;
+
+		            t = t - x2 / d2;
+		        }
+
+		        // Fall back to the bisection method for reliability.
+		        var t0 = 0.0;
+		        var t1 = 1.0;
+		        t = x;
+
+		        for (i = 0; i < 20; i++) {
+		            x2 = this.sampleCurveX(t);
+		            if (Math.abs(x2 - x) < epsilon) break;
+
+		            if (x > x2) {
+		                t0 = t;
+		            } else {
+		                t1 = t;
+		            }
+
+		            t = (t1 - t0) * 0.5 + t0;
+		        }
+
+		        return t;
+		    },
+
+		    solve: function (x, epsilon) {
+		        return this.sampleCurveY(this.solveCurveX(x, epsilon));
+		    }
+		};
+		return unitbezier;
 	}
 
-	UnitBezier.prototype = {
-	    sampleCurveX: function (t) {
-	        // `ax t^3 + bx t^2 + cx t' expanded using Horner's rule.
-	        return ((this.ax * t + this.bx) * t + this.cx) * t;
-	    },
-
-	    sampleCurveY: function (t) {
-	        return ((this.ay * t + this.by) * t + this.cy) * t;
-	    },
-
-	    sampleCurveDerivativeX: function (t) {
-	        return (3.0 * this.ax * t + 2.0 * this.bx) * t + this.cx;
-	    },
-
-	    solveCurveX: function (x, epsilon) {
-	        if (epsilon === undefined) epsilon = 1e-6;
-
-	        if (x < 0.0) return 0.0;
-	        if (x > 1.0) return 1.0;
-
-	        var t = x;
-
-	        // First try a few iterations of Newton's method - normally very fast.
-	        for (var i = 0; i < 8; i++) {
-	            var x2 = this.sampleCurveX(t) - x;
-	            if (Math.abs(x2) < epsilon) return t;
-
-	            var d2 = this.sampleCurveDerivativeX(t);
-	            if (Math.abs(d2) < 1e-6) break;
-
-	            t = t - x2 / d2;
-	        }
-
-	        // Fall back to the bisection method for reliability.
-	        var t0 = 0.0;
-	        var t1 = 1.0;
-	        t = x;
-
-	        for (i = 0; i < 20; i++) {
-	            x2 = this.sampleCurveX(t);
-	            if (Math.abs(x2 - x) < epsilon) break;
-
-	            if (x > x2) {
-	                t0 = t;
-	            } else {
-	                t1 = t;
-	            }
-
-	            t = (t1 - t0) * 0.5 + t0;
-	        }
-
-	        return t;
-	    },
-
-	    solve: function (x, epsilon) {
-	        return this.sampleCurveY(this.solveCurveX(x, epsilon));
-	    }
-	};
-
-	var UnitBezier$1 = /*@__PURE__*/getDefaultExportFromCjs(unitbezier);
-
-	function number(from, to, t) {
-	    return from + t * (to - from);
-	}
-	function color(from, to, t, spaceKey = 'rgb') {
-	    switch (spaceKey) {
-	        case 'rgb': {
-	            const [r, g, b, alpha] = array(from.rgb, to.rgb, t);
-	            return new Color(r, g, b, alpha, false);
-	        }
-	        case 'hcl': {
-	            const [hue0, chroma0, light0, alphaF] = from.hcl;
-	            const [hue1, chroma1, light1, alphaT] = to.hcl;
-	            // https://github.com/gka/chroma.js/blob/cd1b3c0926c7a85cbdc3b1453b3a94006de91a92/src/interpolator/_hsx.js
-	            let hue, chroma;
-	            if (!isNaN(hue0) && !isNaN(hue1)) {
-	                let dh = hue1 - hue0;
-	                if (hue1 > hue0 && dh > 180) {
-	                    dh -= 360;
-	                }
-	                else if (hue1 < hue0 && hue0 - hue1 > 180) {
-	                    dh += 360;
-	                }
-	                hue = hue0 + t * dh;
-	            }
-	            else if (!isNaN(hue0)) {
-	                hue = hue0;
-	                if (light1 === 1 || light1 === 0)
-	                    chroma = chroma0;
-	            }
-	            else if (!isNaN(hue1)) {
-	                hue = hue1;
-	                if (light0 === 1 || light0 === 0)
-	                    chroma = chroma1;
-	            }
-	            else {
-	                hue = NaN;
-	            }
-	            const [r, g, b, alpha] = hclToRgb([
-	                hue,
-	                chroma !== null && chroma !== void 0 ? chroma : number(chroma0, chroma1, t),
-	                number(light0, light1, t),
-	                number(alphaF, alphaT, t),
-	            ]);
-	            return new Color(r, g, b, alpha, false);
-	        }
-	        case 'lab': {
-	            const [r, g, b, alpha] = labToRgb(array(from.lab, to.lab, t));
-	            return new Color(r, g, b, alpha, false);
-	        }
-	    }
-	}
-	function array(from, to, t) {
-	    return from.map((d, i) => {
-	        return number(d, to[i], t);
-	    });
-	}
-	function padding(from, to, t) {
-	    return new Padding(array(from.values, to.values, t));
-	}
-	function variableAnchorOffsetCollection(from, to, t) {
-	    const fromValues = from.values;
-	    const toValues = to.values;
-	    if (fromValues.length !== toValues.length) {
-	        throw new RuntimeError(`Cannot interpolate values of different length. from: ${from.toString()}, to: ${to.toString()}`);
-	    }
-	    const output = [];
-	    for (let i = 0; i < fromValues.length; i += 2) {
-	        // Anchor entries must match
-	        if (fromValues[i] !== toValues[i]) {
-	            throw new RuntimeError(`Cannot interpolate values containing mismatched anchors. from[${i}]: ${fromValues[i]}, to[${i}]: ${toValues[i]}`);
-	        }
-	        output.push(fromValues[i]);
-	        // Interpolate the offset values for each anchor
-	        const [fx, fy] = fromValues[i + 1];
-	        const [tx, ty] = toValues[i + 1];
-	        output.push([number(fx, tx, t), number(fy, ty, t)]);
-	    }
-	    return new VariableAnchorOffsetCollection(output);
-	}
-	const interpolate = {
-	    number,
-	    color,
-	    array,
-	    padding,
-	    variableAnchorOffsetCollection
-	};
+	var unitbezierExports = requireUnitbezier();
+	var UnitBezier = /*@__PURE__*/getDefaultExportFromCjs(unitbezierExports);
 
 	class Interpolate {
 	    constructor(type, operator, interpolation, input, stops) {
@@ -2546,7 +2815,7 @@
 	        }
 	        else if (interpolation.name === 'cubic-bezier') {
 	            const c = interpolation.controlPoints;
-	            const ub = new UnitBezier$1(c[0], c[1], c[2], c[3]);
+	            const ub = new UnitBezier(c[0], c[1], c[2], c[3]);
 	            t = ub.solve(exponentialInterpolation(input, 1, lower, upper));
 	        }
 	        return t;
@@ -2593,7 +2862,7 @@
 	            return null;
 	        const stops = [];
 	        let outputType = null;
-	        if (operator === 'interpolate-hcl' || operator === 'interpolate-lab') {
+	        if ((operator === 'interpolate-hcl' || operator === 'interpolate-lab') && context.expectedType != ColorArrayType) {
 	            outputType = ColorType;
 	        }
 	        else if (context.expectedType && context.expectedType.kind !== 'value') {
@@ -2617,11 +2886,14 @@
 	            stops.push([label, parsed]);
 	        }
 	        if (!verifyType(outputType, NumberType) &&
+	            !verifyType(outputType, ProjectionDefinitionType) &&
 	            !verifyType(outputType, ColorType) &&
 	            !verifyType(outputType, PaddingType) &&
+	            !verifyType(outputType, NumberArrayType) &&
+	            !verifyType(outputType, ColorArrayType) &&
 	            !verifyType(outputType, VariableAnchorOffsetCollectionType) &&
-	            !verifyType(outputType, array$1(NumberType))) {
-	            return context.error(`Type ${toString$1(outputType)} is not interpolatable.`);
+	            !verifyType(outputType, array(NumberType))) {
+	            return context.error(`Type ${typeToString(outputType)} is not interpolatable.`);
 	        }
 	        return new Interpolate(outputType, operator, interpolation, input, stops);
 	    }
@@ -2647,11 +2919,38 @@
 	        const outputUpper = outputs[index + 1].evaluate(ctx);
 	        switch (this.operator) {
 	            case 'interpolate':
-	                return interpolate[this.type.kind](outputLower, outputUpper, t);
+	                switch (this.type.kind) {
+	                    case 'number':
+	                        return interpolateNumber(outputLower, outputUpper, t);
+	                    case 'color':
+	                        return Color.interpolate(outputLower, outputUpper, t);
+	                    case 'padding':
+	                        return Padding.interpolate(outputLower, outputUpper, t);
+	                    case 'colorArray':
+	                        return ColorArray.interpolate(outputLower, outputUpper, t);
+	                    case 'numberArray':
+	                        return NumberArray.interpolate(outputLower, outputUpper, t);
+	                    case 'variableAnchorOffsetCollection':
+	                        return VariableAnchorOffsetCollection.interpolate(outputLower, outputUpper, t);
+	                    case 'array':
+	                        return interpolateArray(outputLower, outputUpper, t);
+	                    case 'projectionDefinition':
+	                        return ProjectionDefinition.interpolate(outputLower, outputUpper, t);
+	                }
 	            case 'interpolate-hcl':
-	                return interpolate.color(outputLower, outputUpper, t, 'hcl');
+	                switch (this.type.kind) {
+	                    case 'color':
+	                        return Color.interpolate(outputLower, outputUpper, t, 'hcl');
+	                    case 'colorArray':
+	                        return ColorArray.interpolate(outputLower, outputUpper, t, 'hcl');
+	                }
 	            case 'interpolate-lab':
-	                return interpolate.color(outputLower, outputUpper, t, 'lab');
+	                switch (this.type.kind) {
+	                    case 'color':
+	                        return Color.interpolate(outputLower, outputUpper, t, 'lab');
+	                    case 'colorArray':
+	                        return ColorArray.interpolate(outputLower, outputUpper, t, 'lab');
+	                }
 	        }
 	    }
 	    eachChild(fn) {
@@ -2720,7 +3019,7 @@
 	    }
 	    static parse(args, context) {
 	        if (args.length < 2) {
-	            return context.error('Expectected at least one argument.');
+	            return context.error('Expected at least one argument.');
 	        }
 	        let outputType = null;
 	        const expectedType = context.expectedType;
@@ -2842,18 +3141,18 @@
 	            if (!lhs)
 	                return null;
 	            if (!isComparableType(op, lhs.type)) {
-	                return context.concat(1).error(`"${op}" comparisons are not supported for type '${toString$1(lhs.type)}'.`);
+	                return context.concat(1).error(`"${op}" comparisons are not supported for type '${typeToString(lhs.type)}'.`);
 	            }
 	            let rhs = context.parse(args[2], 2, ValueType);
 	            if (!rhs)
 	                return null;
 	            if (!isComparableType(op, rhs.type)) {
-	                return context.concat(2).error(`"${op}" comparisons are not supported for type '${toString$1(rhs.type)}'.`);
+	                return context.concat(2).error(`"${op}" comparisons are not supported for type '${typeToString(rhs.type)}'.`);
 	            }
 	            if (lhs.type.kind !== rhs.type.kind &&
 	                lhs.type.kind !== 'value' &&
 	                rhs.type.kind !== 'value') {
-	                return context.error(`Cannot compare types '${toString$1(lhs.type)}' and '${toString$1(rhs.type)}'.`);
+	                return context.error(`Cannot compare types '${typeToString(lhs.type)}' and '${typeToString(rhs.type)}'.`);
 	            }
 	            if (isOrderComparison) {
 	                // typing rules specific to less/greater than operators
@@ -3066,7 +3365,7 @@
 	                }
 	                let font = null;
 	                if (arg['text-font']) {
-	                    font = context.parse(arg['text-font'], 1, array$1(StringType));
+	                    font = context.parse(arg['text-font'], 1, array(StringType));
 	                    if (!font)
 	                        return null;
 	                }
@@ -3076,10 +3375,20 @@
 	                    if (!textColor)
 	                        return null;
 	                }
+	                let verticalAlign = null;
+	                if (arg['vertical-align']) {
+	                    if (typeof arg['vertical-align'] === 'string' && !VERTICAL_ALIGN_OPTIONS.includes(arg['vertical-align'])) {
+	                        return context.error(`'vertical-align' must be one of: 'bottom', 'center', 'top' but found '${arg['vertical-align']}' instead.`);
+	                    }
+	                    verticalAlign = context.parse(arg['vertical-align'], 1, StringType);
+	                    if (!verticalAlign)
+	                        return null;
+	                }
 	                const lastExpression = sections[sections.length - 1];
 	                lastExpression.scale = scale;
 	                lastExpression.font = font;
 	                lastExpression.textColor = textColor;
+	                lastExpression.verticalAlign = verticalAlign;
 	            }
 	            else {
 	                const content = context.parse(args[i], 1, ValueType);
@@ -3089,7 +3398,7 @@
 	                if (kind !== 'string' && kind !== 'value' && kind !== 'null' && kind !== 'resolvedImage')
 	                    return context.error('Formatted text type must be \'string\', \'value\', \'image\' or \'null\'.');
 	                nextTokenMayBeObject = true;
-	                sections.push({ content, scale: null, font: null, textColor: null });
+	                sections.push({ content, scale: null, font: null, textColor: null, verticalAlign: null });
 	            }
 	        }
 	        return new FormatExpression(sections);
@@ -3098,9 +3407,9 @@
 	        const evaluateSection = section => {
 	            const evaluatedContent = section.content.evaluate(ctx);
 	            if (typeOf(evaluatedContent) === ResolvedImageType) {
-	                return new FormattedSection('', evaluatedContent, null, null, null);
+	                return new FormattedSection('', evaluatedContent, null, null, null, section.verticalAlign ? section.verticalAlign.evaluate(ctx) : null);
 	            }
-	            return new FormattedSection(toString(evaluatedContent), null, section.scale ? section.scale.evaluate(ctx) : null, section.font ? section.font.evaluate(ctx).join(',') : null, section.textColor ? section.textColor.evaluate(ctx) : null);
+	            return new FormattedSection(valueToString(evaluatedContent), null, section.scale ? section.scale.evaluate(ctx) : null, section.font ? section.font.evaluate(ctx).join(',') : null, section.textColor ? section.textColor.evaluate(ctx) : null, section.verticalAlign ? section.verticalAlign.evaluate(ctx) : null);
 	        };
 	        return new Formatted(this.sections.map(evaluateSection));
 	    }
@@ -3115,6 +3424,9 @@
 	            }
 	            if (section.textColor) {
 	                fn(section.textColor);
+	            }
+	            if (section.verticalAlign) {
+	                fn(section.verticalAlign);
 	            }
 	        }
 	    }
@@ -3167,19 +3479,20 @@
 	        if (!input)
 	            return null;
 	        if (input.type.kind !== 'array' && input.type.kind !== 'string' && input.type.kind !== 'value')
-	            return context.error(`Expected argument of type string or array, but found ${toString$1(input.type)} instead.`);
+	            return context.error(`Expected argument of type string or array, but found ${typeToString(input.type)} instead.`);
 	        return new Length(input);
 	    }
 	    evaluate(ctx) {
 	        const input = this.input.evaluate(ctx);
 	        if (typeof input === 'string') {
-	            return input.length;
+	            // The length may be affected by surrogate pairs.
+	            return [...input].length;
 	        }
 	        else if (Array.isArray(input)) {
 	            return input.length;
 	        }
 	        else {
-	            throw new RuntimeError(`Expected value to be of type string or array, but found ${toString$1(typeOf(input))} instead.`);
+	            throw new RuntimeError(`Expected value to be of type string or array, but found ${typeToString(typeOf(input))} instead.`);
 	        }
 	    }
 	    eachChild(fn) {
@@ -3514,7 +3827,7 @@
 	}
 
 	class TinyQueue {
-	    constructor(data = [], compare = defaultCompare) {
+	    constructor(data = [], compare = (a, b) => (a < b ? -1 : a > b ? 1 : 0)) {
 	        this.data = data;
 	        this.length = this.data.length;
 	        this.compare = compare;
@@ -3526,8 +3839,7 @@
 
 	    push(item) {
 	        this.data.push(item);
-	        this.length++;
-	        this._up(this.length - 1);
+	        this._up(this.length++);
 	    }
 
 	    pop() {
@@ -3535,9 +3847,8 @@
 
 	        const top = this.data[0];
 	        const bottom = this.data.pop();
-	        this.length--;
 
-	        if (this.length > 0) {
+	        if (--this.length > 0) {
 	            this.data[0] = bottom;
 	            this._down(0);
 	        }
@@ -3570,26 +3881,20 @@
 	        const item = data[pos];
 
 	        while (pos < halfLength) {
-	            let left = (pos << 1) + 1;
-	            let best = data[left];
-	            const right = left + 1;
+	            let bestChild = (pos << 1) + 1; // initially it is the left child
+	            const right = bestChild + 1;
 
-	            if (right < this.length && compare(data[right], best) < 0) {
-	                left = right;
-	                best = data[right];
+	            if (right < this.length && compare(data[right], data[bestChild]) < 0) {
+	                bestChild = right;
 	            }
-	            if (compare(best, item) >= 0) break;
+	            if (compare(data[bestChild], item) >= 0) break;
 
-	            data[pos] = best;
-	            pos = left;
+	            data[pos] = data[bestChild];
+	            pos = bestChild;
 	        }
 
 	        data[pos] = item;
 	    }
-	}
-
-	function defaultCompare(a, b) {
-	    return a < b ? -1 : a > b ? 1 : 0;
 	}
 
 	/**
@@ -3658,7 +3963,7 @@
 	        const w = Math.sqrt(w2);
 	        // multipliers for converting longitude and latitude degrees into distance
 	        this.kx = m * w * coslat; // based on normal radius of curvature
-	        this.ky = m * w * w2 * (1 - E2); // based on meridonal radius of curvature
+	        this.ky = m * w * w2 * (1 - E2); // based on meridional radius of curvature
 	    }
 	    /**
 	     * Given two points of the form [longitude, latitude], returns the distance.
@@ -4232,6 +4537,37 @@
 	    }
 	}
 
+	class GlobalState {
+	    constructor(key) {
+	        this.type = ValueType;
+	        this.key = key;
+	    }
+	    static parse(args, context) {
+	        if (args.length !== 2) {
+	            return context.error(`Expected 1 argument, but found ${args.length - 1} instead.`);
+	        }
+	        const key = args[1];
+	        if (key === undefined || key === null) {
+	            return context.error('Global state property must be defined.');
+	        }
+	        if (typeof key !== 'string') {
+	            return context.error(`Global state property must be string, but found ${typeof args[1]} instead.`);
+	        }
+	        return new GlobalState(key);
+	    }
+	    evaluate(ctx) {
+	        var _a;
+	        const globalState = (_a = ctx.globals) === null || _a === void 0 ? void 0 : _a.globalState;
+	        if (!globalState || Object.keys(globalState).length === 0)
+	            return null;
+	        return getOwn(globalState, this.key);
+	    }
+	    eachChild() { }
+	    outputDefined() {
+	        return false;
+	    }
+	}
+
 	const expressions = {
 	    // special forms
 	    '==': Equals,
@@ -4269,7 +4605,8 @@
 	    'to-string': Coercion,
 	    'var': Var,
 	    'within': Within,
-	    'distance': Distance
+	    'distance': Distance,
+	    'global-state': GlobalState
 	};
 
 	class CompoundExpression {
@@ -4359,7 +4696,7 @@
 	                const parsed = context.parse(args[i], 1 + actualTypes.length);
 	                if (!parsed)
 	                    return null;
-	                actualTypes.push(toString$1(parsed.type));
+	                actualTypes.push(typeToString(parsed.type));
 	            }
 	            context.error(`Expected arguments of type ${signatures}, but found (${actualTypes.join(', ')}) instead.`);
 	        }
@@ -4413,10 +4750,10 @@
 	    'typeof': [
 	        StringType,
 	        [ValueType],
-	        (ctx, [v]) => toString$1(typeOf(v.evaluate(ctx)))
+	        (ctx, [v]) => typeToString(typeOf(v.evaluate(ctx)))
 	    ],
 	    'to-rgba': [
-	        array$1(NumberType, 4),
+	        array(NumberType, 4),
 	        [ColorType],
 	        (ctx, [v]) => {
 	            const [r, g, b, a] = v.evaluate(ctx).rgb;
@@ -4486,6 +4823,11 @@
 	        NumberType,
 	        [],
 	        (ctx) => ctx.globals.heatmapDensity || 0
+	    ],
+	    'elevation': [
+	        NumberType,
+	        [],
+	        (ctx) => ctx.globals.elevation || 0
 	    ],
 	    'line-progress': [
 	        NumberType,
@@ -4746,23 +5088,23 @@
 	    ],
 	    'filter-type-in': [
 	        BooleanType,
-	        [array$1(StringType)],
+	        [array(StringType)],
 	        (ctx, [v]) => v.value.indexOf(ctx.geometryType()) >= 0
 	    ],
 	    'filter-id-in': [
 	        BooleanType,
-	        [array$1(ValueType)],
+	        [array(ValueType)],
 	        (ctx, [v]) => v.value.indexOf(ctx.id()) >= 0
 	    ],
 	    'filter-in-small': [
 	        BooleanType,
-	        [StringType, array$1(ValueType)],
+	        [StringType, array(ValueType)],
 	        // assumes v is an array literal
 	        (ctx, [k, v]) => v.value.indexOf(ctx.properties()[k.value]) >= 0
 	    ],
 	    'filter-in-large': [
 	        BooleanType,
-	        [StringType, array$1(ValueType)],
+	        [StringType, array(ValueType)],
 	        // assumes v is a array literal with values sorted in ascending order and of a single type
 	        (ctx, [k, v]) => binarySearch(ctx.properties()[k.value], v.value, 0, v.value.length - 1)
 	    ],
@@ -4834,7 +5176,7 @@
 	    'concat': [
 	        StringType,
 	        varargs(ValueType),
-	        (ctx, args) => args.map(arg => toString(arg.evaluate(ctx))).join('')
+	        (ctx, args) => args.map(arg => valueToString(arg.evaluate(ctx))).join('')
 	    ],
 	    'resolved-locale': [
 	        StringType,
@@ -4844,10 +5186,10 @@
 	});
 	function stringifySignature(signature) {
 	    if (Array.isArray(signature)) {
-	        return `(${signature.map(toString$1).join(', ')})`;
+	        return `(${signature.map(typeToString).join(', ')})`;
 	    }
 	    else {
-	        return `(${toString$1(signature.type)}...)`;
+	        return `(${typeToString(signature.type)}...)`;
 	    }
 	}
 	function isExpressionConstant(expression) {
@@ -4867,6 +5209,9 @@
 	        return false;
 	    }
 	    else if (expression instanceof Distance) {
+	        return false;
+	    }
+	    else if (expression instanceof GlobalState) {
 	        return false;
 	    }
 	    const isTypeAnnotation = expression instanceof Coercion ||
@@ -4890,7 +5235,7 @@
 	        return false;
 	    }
 	    return isFeatureConstant(expression) &&
-	        isGlobalPropertyConstant(expression, ['zoom', 'heatmap-density', 'line-progress', 'accumulated', 'is-supported-script']);
+	        isGlobalPropertyConstant(expression, ['zoom', 'heatmap-density', 'elevation', 'line-progress', 'accumulated', 'is-supported-script']);
 	}
 	function isFeatureConstant(e) {
 	    if (e instanceof CompoundExpression) {
@@ -4992,18 +5337,22 @@
 	}
 
 	function isFunction(value) {
-	    return typeof value === 'object' && value !== null && !Array.isArray(value);
+	    return typeof value === 'object' && value !== null && !Array.isArray(value) && typeOf(value) === ObjectType;
 	}
 
 	class StyleExpression {
-	    constructor(expression, propertySpec) {
+	    constructor(expression, propertySpec, globalState) {
 	        this.expression = expression;
 	        this._warningHistory = {};
 	        this._evaluator = new EvaluationContext();
 	        this._defaultValue = propertySpec ? getDefaultValue(propertySpec) : null;
 	        this._enumValues = propertySpec && propertySpec.type === 'enum' ? propertySpec.values : null;
+	        this._globalState = globalState;
 	    }
 	    evaluateWithoutErrorHandling(globals, feature, featureState, canonical, availableImages, formattedSection) {
+	        if (this._globalState) {
+	            globals = addGlobalState(globals, this._globalState);
+	        }
 	        this._evaluator.globals = globals;
 	        this._evaluator.feature = feature;
 	        this._evaluator.featureState = featureState;
@@ -5013,6 +5362,9 @@
 	        return this.expression.evaluate(this._evaluator);
 	    }
 	    evaluate(globals, feature, featureState, canonical, availableImages, formattedSection) {
+	        if (this._globalState) {
+	            globals = addGlobalState(globals, this._globalState);
+	        }
 	        this._evaluator.globals = globals;
 	        this._evaluator.feature = feature || null;
 	        this._evaluator.featureState = featureState || null;
@@ -5021,7 +5373,6 @@
 	        this._evaluator.formattedSection = formattedSection || null;
 	        try {
 	            const val = this.expression.evaluate(this._evaluator);
-	            // eslint-disable-next-line no-self-compare
 	            if (val === null || val === undefined || (typeof val === 'number' && val !== val)) {
 	                return this._defaultValue;
 	            }
@@ -5054,40 +5405,56 @@
 	 *
 	 * @private
 	 */
-	function createExpression(expression, propertySpec) {
+	function createExpression(expression, propertySpec, globalState) {
 	    const parser = new ParsingContext(expressions, isExpressionConstant, [], propertySpec ? getExpectedType(propertySpec) : undefined);
 	    // For string-valued properties, coerce to string at the top level rather than asserting.
 	    const parsed = parser.parse(expression, undefined, undefined, undefined, propertySpec && propertySpec.type === 'string' ? { typeAnnotation: 'coerce' } : undefined);
 	    if (!parsed) {
 	        return error(parser.errors);
 	    }
-	    return success(new StyleExpression(parsed, propertySpec));
+	    return success(new StyleExpression(parsed, propertySpec, globalState));
 	}
 	class ZoomConstantExpression {
-	    constructor(kind, expression) {
+	    constructor(kind, expression, globalState) {
 	        this.kind = kind;
 	        this._styleExpression = expression;
 	        this.isStateDependent = kind !== 'constant' && !isStateConstant(expression.expression);
+	        this.globalStateRefs = findGlobalStateRefs(expression.expression);
+	        this._globalState = globalState;
 	    }
 	    evaluateWithoutErrorHandling(globals, feature, featureState, canonical, availableImages, formattedSection) {
+	        if (this._globalState) {
+	            globals = addGlobalState(globals, this._globalState);
+	        }
 	        return this._styleExpression.evaluateWithoutErrorHandling(globals, feature, featureState, canonical, availableImages, formattedSection);
 	    }
 	    evaluate(globals, feature, featureState, canonical, availableImages, formattedSection) {
+	        if (this._globalState) {
+	            globals = addGlobalState(globals, this._globalState);
+	        }
 	        return this._styleExpression.evaluate(globals, feature, featureState, canonical, availableImages, formattedSection);
 	    }
 	}
 	class ZoomDependentExpression {
-	    constructor(kind, expression, zoomStops, interpolationType) {
+	    constructor(kind, expression, zoomStops, interpolationType, globalState) {
 	        this.kind = kind;
 	        this.zoomStops = zoomStops;
 	        this._styleExpression = expression;
 	        this.isStateDependent = kind !== 'camera' && !isStateConstant(expression.expression);
+	        this.globalStateRefs = findGlobalStateRefs(expression.expression);
 	        this.interpolationType = interpolationType;
+	        this._globalState = globalState;
 	    }
 	    evaluateWithoutErrorHandling(globals, feature, featureState, canonical, availableImages, formattedSection) {
+	        if (this._globalState) {
+	            globals = addGlobalState(globals, this._globalState);
+	        }
 	        return this._styleExpression.evaluateWithoutErrorHandling(globals, feature, featureState, canonical, availableImages, formattedSection);
 	    }
 	    evaluate(globals, feature, featureState, canonical, availableImages, formattedSection) {
+	        if (this._globalState) {
+	            globals = addGlobalState(globals, this._globalState);
+	        }
 	        return this._styleExpression.evaluate(globals, feature, featureState, canonical, availableImages, formattedSection);
 	    }
 	    interpolationFactor(input, lower, upper) {
@@ -5099,8 +5466,8 @@
 	        }
 	    }
 	}
-	function createPropertyExpression(expressionInput, propertySpec) {
-	    const expression = createExpression(expressionInput, propertySpec);
+	function createPropertyExpression(expressionInput, propertySpec, globalState) {
+	    const expression = createExpression(expressionInput, propertySpec, globalState);
 	    if (expression.result === 'error') {
 	        return expression;
 	    }
@@ -5125,13 +5492,13 @@
 	    }
 	    if (!zoomCurve) {
 	        return success(isFeatureConstantResult ?
-	            new ZoomConstantExpression('constant', expression.value) :
-	            new ZoomConstantExpression('source', expression.value));
+	            new ZoomConstantExpression('constant', expression.value, globalState) :
+	            new ZoomConstantExpression('source', expression.value, globalState));
 	    }
 	    const interpolationType = zoomCurve instanceof Interpolate ? zoomCurve.interpolation : undefined;
 	    return success(isFeatureConstantResult ?
-	        new ZoomDependentExpression('camera', expression.value, zoomCurve.labels, interpolationType) :
-	        new ZoomDependentExpression('composite', expression.value, zoomCurve.labels, interpolationType));
+	        new ZoomDependentExpression('camera', expression.value, zoomCurve.labels, interpolationType, globalState) :
+	        new ZoomDependentExpression('composite', expression.value, zoomCurve.labels, interpolationType, globalState));
 	}
 	// Zoom-dependent expressions may only use ["zoom"] as the input to a top-level "step" or "interpolate"
 	// expression (collectively referred to as a "curve"). The curve may be wrapped in one or more "let" or
@@ -5171,6 +5538,15 @@
 	    });
 	    return result;
 	}
+	function findGlobalStateRefs(expression, results = new Set()) {
+	    if (expression instanceof GlobalState) {
+	        results.add(expression.key);
+	    }
+	    expression.eachChild(childExpression => {
+	        findGlobalStateRefs(childExpression, results);
+	    });
+	    return results;
+	}
 	function getExpectedType(spec) {
 	    const types = {
 	        color: ColorType,
@@ -5180,11 +5556,14 @@
 	        boolean: BooleanType,
 	        formatted: FormattedType,
 	        padding: PaddingType,
+	        numberArray: NumberArrayType,
+	        colorArray: ColorArrayType,
+	        projectionDefinition: ProjectionDefinitionType,
 	        resolvedImage: ResolvedImageType,
 	        variableAnchorOffsetCollection: VariableAnchorOffsetCollectionType
 	    };
 	    if (spec.type === 'array') {
-	        return array$1(types[spec.value] || ValueType, spec.length);
+	        return array(types[spec.value] || ValueType, spec.length);
 	    }
 	    return types[spec.type];
 	}
@@ -5195,21 +5574,34 @@
 	        // back to in case of runtime errors
 	        return new Color(0, 0, 0, 0);
 	    }
-	    else if (spec.type === 'color') {
-	        return Color.parse(spec.default) || null;
+	    switch (spec.type) {
+	        case 'color':
+	            return Color.parse(spec.default) || null;
+	        case 'padding':
+	            return Padding.parse(spec.default) || null;
+	        case 'numberArray':
+	            return NumberArray.parse(spec.default) || null;
+	        case 'colorArray':
+	            return ColorArray.parse(spec.default) || null;
+	        case 'variableAnchorOffsetCollection':
+	            return VariableAnchorOffsetCollection.parse(spec.default) || null;
+	        case 'projectionDefinition':
+	            return ProjectionDefinition.parse(spec.default) || null;
+	        default:
+	            return (spec.default === undefined ? null : spec.default);
 	    }
-	    else if (spec.type === 'padding') {
-	        return Padding.parse(spec.default) || null;
-	    }
-	    else if (spec.type === 'variableAnchorOffsetCollection') {
-	        return VariableAnchorOffsetCollection.parse(spec.default) || null;
-	    }
-	    else if (spec.default === undefined) {
-	        return null;
-	    }
-	    else {
-	        return spec.default;
-	    }
+	}
+	function addGlobalState(globals, globalState) {
+	    const { zoom, heatmapDensity, elevation, lineProgress, isSupportedScript, accumulated } = globals !== null && globals !== void 0 ? globals : {};
+	    return {
+	        zoom,
+	        heatmapDensity,
+	        elevation,
+	        lineProgress,
+	        isSupportedScript,
+	        accumulated,
+	        globalState
+	    };
 	}
 
 	function validateObject(options) {
@@ -5227,12 +5619,13 @@
 	    }
 	    for (const objectKey in object) {
 	        const elementSpecKey = objectKey.split('.')[0]; // treat 'paint.*' as 'paint'
-	        const elementSpec = elementSpecs[elementSpecKey] || elementSpecs['*'];
+	        // objectKey comes from the user controlled style input, so elementSpecKey may be e.g. "__proto__"
+	        const elementSpec = getOwn(elementSpecs, elementSpecKey) || elementSpecs['*'];
 	        let validateElement;
-	        if (elementValidators[elementSpecKey]) {
+	        if (getOwn(elementValidators, elementSpecKey)) {
 	            validateElement = elementValidators[elementSpecKey];
 	        }
-	        else if (elementSpecs[elementSpecKey]) {
+	        else if (getOwn(elementSpecs, elementSpecKey)) {
 	            validateElement = validateSpec;
 	        }
 	        else if (elementValidators['*']) {
@@ -5316,7 +5709,6 @@
 	    const value = options.value;
 	    const valueSpec = options.valueSpec;
 	    let type = getType(value);
-	    // eslint-disable-next-line no-self-compare
 	    if (type === 'number' && value !== value) {
 	        type = 'NaN';
 	    }
@@ -5439,7 +5831,6 @@
 	            errors = errors.concat(validateStopDomainValue({
 	                key: `${key}[0]`,
 	                value: value[0],
-	                valueSpec: {},
 	                validateSpec: options.validateSpec,
 	                style: options.style,
 	                styleSpec: options.styleSpec
@@ -5739,9 +6130,6 @@
 	    }
 	    const errors = [];
 	    if (options.layerType === 'symbol') {
-	        if (propertyKey === 'text-field' && style && !style.glyphs) {
-	            errors.push(new ValidationError(key, value, 'use of "text-field" requires a style "glyphs" property'));
-	        }
 	        if (propertyKey === 'text-font' && isFunction(deepUnbundle(value)) && unbundle(value.type) === 'identity') {
 	            errors.push(new ValidationError(key, value, '"text-font" does not support identity functions'));
 	        }
@@ -5772,6 +6160,9 @@
 	    const key = options.key;
 	    const style = options.style;
 	    const styleSpec = options.styleSpec;
+	    if (getType(layer) !== 'object') {
+	        return [new ValidationError(key, layer, `object expected, ${getType(layer)} found`)];
+	    }
 	    if (!layer.type && !layer.ref) {
 	        errors.push(new ValidationError(key, layer, 'either "type" or "ref" is required'));
 	    }
@@ -5823,14 +6214,17 @@
 	            else if (sourceType !== 'raster-dem' && type === 'hillshade') {
 	                errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a raster-dem source`));
 	            }
+	            else if (sourceType !== 'raster-dem' && type === 'color-relief') {
+	                errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a raster-dem source`));
+	            }
 	            else if (sourceType === 'raster' && type !== 'raster') {
 	                errors.push(new ValidationError(key, layer.source, `layer "${layer.id}" requires a vector source`));
 	            }
 	            else if (sourceType === 'vector' && !layer['source-layer']) {
 	                errors.push(new ValidationError(key, layer, `layer "${layer.id}" must specify a "source-layer"`));
 	            }
-	            else if (sourceType === 'raster-dem' && type !== 'hillshade') {
-	                errors.push(new ValidationError(key, layer.source, 'raster-dem source can only be used with layer type \'hillshade\'.'));
+	            else if (sourceType === 'raster-dem' && (type !== 'hillshade' && type !== 'color-relief')) {
+	                errors.push(new ValidationError(key, layer.source, 'raster-dem source can only be used with layer type \'hillshade\' or \'color-relief\'.'));
 	            }
 	            else if (type === 'line' && layer.paint && layer.paint['line-gradient'] &&
 	                (sourceType !== 'geojson' || !source.lineMetrics)) {
@@ -6003,13 +6397,11 @@
 	                    errors.push(...validateExpression({
 	                        key: `${key}.${prop}.map`,
 	                        value: mapExpr,
-	                        validateSpec,
 	                        expressionContext: 'cluster-map'
 	                    }));
 	                    errors.push(...validateExpression({
 	                        key: `${key}.${prop}.reduce`,
 	                        value: reduceExpr,
-	                        validateSpec,
 	                        expressionContext: 'cluster-reduce'
 	                    }));
 	                }
@@ -6039,11 +6431,7 @@
 	            return validateEnum({
 	                key: `${key}.type`,
 	                value: value.type,
-	                valueSpec: { values: ['vector', 'raster', 'raster-dem', 'geojson', 'video', 'image'] },
-	                style,
-	                validateSpec,
-	                styleSpec
-	            });
+	                valueSpec: { values: ['vector', 'raster', 'raster-dem', 'geojson', 'video', 'image'] }});
 	    }
 	}
 	function validatePromoteId({ key, value }) {
@@ -6209,6 +6597,60 @@
 	    }
 	}
 
+	function validateNumberArray(options) {
+	    const key = options.key;
+	    const value = options.value;
+	    const type = getType(value);
+	    if (type === 'array') {
+	        const arrayElementSpec = {
+	            type: 'number'
+	        };
+	        if (value.length < 1) {
+	            return [new ValidationError(key, value, 'array length at least 1 expected, length 0 found')];
+	        }
+	        let errors = [];
+	        for (let i = 0; i < value.length; i++) {
+	            errors = errors.concat(options.validateSpec({
+	                key: `${key}[${i}]`,
+	                value: value[i],
+	                validateSpec: options.validateSpec,
+	                valueSpec: arrayElementSpec
+	            }));
+	        }
+	        return errors;
+	    }
+	    else {
+	        return validateNumber({
+	            key,
+	            value,
+	            valueSpec: {}
+	        });
+	    }
+	}
+
+	function validateColorArray(options) {
+	    const key = options.key;
+	    const value = options.value;
+	    const type = getType(value);
+	    if (type === 'array') {
+	        if (value.length < 1) {
+	            return [new ValidationError(key, value, 'array length at least 1 expected, length 0 found')];
+	        }
+	        let errors = [];
+	        for (let i = 0; i < value.length; i++) {
+	            errors = errors.concat(validateColor({
+	                key: `${key}[${i}]`,
+	                value: value[i]}));
+	        }
+	        return errors;
+	    }
+	    else {
+	        return validateColor({
+	            key,
+	            value});
+	    }
+	}
+
 	function validateVariableAnchorOffsetCollection(options) {
 	    const key = options.key;
 	    const value = options.value;
@@ -6312,6 +6754,46 @@
 	    return errors;
 	}
 
+	function validateProjectionDefinition(options) {
+	    const key = options.key;
+	    let value = options.value;
+	    value = value instanceof String ? value.valueOf() : value;
+	    const type = getType(value);
+	    if (type === 'array' && !isProjectionDefinitionValue(value) && !isPropertyValueSpecification(value)) {
+	        return [new ValidationError(key, value, `projection expected, invalid array ${JSON.stringify(value)} found`)];
+	    }
+	    else if (!['array', 'string'].includes(type)) {
+	        return [new ValidationError(key, value, `projection expected, invalid type "${type}" found`)];
+	    }
+	    return [];
+	}
+	function isPropertyValueSpecification(value) {
+	    if (['interpolate', 'step', 'literal'].includes(value[0])) {
+	        return true;
+	    }
+	    return false;
+	}
+	function isProjectionDefinitionValue(value) {
+	    return Array.isArray(value) &&
+	        value.length === 3 &&
+	        typeof value[0] === 'string' &&
+	        typeof value[1] === 'string' &&
+	        typeof value[2] === 'number';
+	}
+
+	function isObjectLiteral(anything) {
+	    return Boolean(anything) && anything.constructor === Object;
+	}
+
+	function validateState(options) {
+	    if (!isObjectLiteral(options.value)) {
+	        return [
+	            new ValidationError(options.key, options.value, `object expected, ${getType(options.value)} found`),
+	        ];
+	    }
+	    return [];
+	}
+
 	const VALIDATORS = {
 	    '*'() {
 	        return [];
@@ -6331,12 +6813,16 @@
 	    'sky': validateSky,
 	    'terrain': validateTerrain,
 	    'projection': validateProjection,
+	    'projectionDefinition': validateProjectionDefinition,
 	    'string': validateString,
 	    'formatted': validateFormatted,
 	    'resolvedImage': validateImage,
 	    'padding': validatePadding,
+	    'numberArray': validateNumberArray,
+	    'colorArray': validateColorArray,
 	    'variableAnchorOffsetCollection': validateVariableAnchorOffsetCollection,
 	    'sprite': validateSprite,
+	    'state': validateState
 	};
 	/**
 	 * Main recursive validation function used internally.
@@ -6395,6 +6881,9 @@
 			type: "array",
 			value: "number"
 		},
+		centerAltitude: {
+			type: "number"
+		},
 		zoom: {
 			type: "number"
 		},
@@ -6408,6 +6897,16 @@
 			type: "number",
 			"default": 0,
 			units: "degrees"
+		},
+		roll: {
+			type: "number",
+			"default": 0,
+			units: "degrees"
+		},
+		state: {
+			type: "state",
+			"default": {
+			}
 		},
 		light: {
 			type: "light"
@@ -6430,6 +6929,10 @@
 		},
 		glyphs: {
 			type: "string"
+		},
+		"font-faces": {
+			type: "array",
+			value: "fontFaces"
 		},
 		transition: {
 			type: "transition"
@@ -6507,6 +7010,16 @@
 		volatile: {
 			type: "boolean",
 			"default": false
+		},
+		encoding: {
+			type: "enum",
+			values: {
+				mvt: {
+				},
+				mlt: {
+				}
+			},
+			"default": "mvt"
 		},
 		"*": {
 			type: "*"
@@ -6790,6 +7303,8 @@
 				},
 				hillshade: {
 				},
+				"color-relief": {
+				},
 				background: {
 				}
 			},
@@ -6834,6 +7349,7 @@
 		"layout_symbol",
 		"layout_raster",
 		"layout_hillshade",
+		"layout_color-relief",
 		"layout_background"
 	];
 	var layout_background = {
@@ -8158,13 +8674,15 @@
 	};
 	var projection = {
 		type: {
-			type: "enum",
+			type: "projectionDefinition",
 			"default": "mercator",
-			values: {
-				mercator: {
-				},
-				globe: {
-				}
+			"property-type": "data-constant",
+			transition: false,
+			expression: {
+				interpolated: true,
+				parameters: [
+					"zoom"
+				]
 			}
 		}
 	};
@@ -8178,6 +8696,7 @@
 		"paint_symbol",
 		"paint_raster",
 		"paint_hillshade",
+		"paint_color-relief",
 		"paint_background"
 	];
 	var paint_fill = {
@@ -8450,10 +8969,11 @@
 			expression: {
 				interpolated: false,
 				parameters: [
-					"zoom"
+					"zoom",
+					"feature"
 				]
 			},
-			"property-type": "cross-faded"
+			"property-type": "cross-faded-data-driven"
 		},
 		"line-pattern": {
 			type: "resolvedImage",
@@ -9153,10 +9673,24 @@
 	};
 	var paint_hillshade = {
 		"hillshade-illumination-direction": {
-			type: "number",
+			type: "numberArray",
 			"default": 335,
 			minimum: 0,
 			maximum: 359,
+			transition: false,
+			expression: {
+				interpolated: true,
+				parameters: [
+					"zoom"
+				]
+			},
+			"property-type": "data-constant"
+		},
+		"hillshade-illumination-altitude": {
+			type: "numberArray",
+			"default": 45,
+			minimum: 0,
+			maximum: 90,
 			transition: false,
 			expression: {
 				interpolated: true,
@@ -9198,7 +9732,7 @@
 			"property-type": "data-constant"
 		},
 		"hillshade-shadow-color": {
-			type: "color",
+			type: "colorArray",
 			"default": "#000000",
 			transition: true,
 			expression: {
@@ -9210,7 +9744,7 @@
 			"property-type": "data-constant"
 		},
 		"hillshade-highlight-color": {
-			type: "color",
+			type: "colorArray",
 			"default": "#FFFFFF",
 			transition: true,
 			expression: {
@@ -9227,6 +9761,29 @@
 			transition: true,
 			expression: {
 				interpolated: true,
+				parameters: [
+					"zoom"
+				]
+			},
+			"property-type": "data-constant"
+		},
+		"hillshade-method": {
+			type: "enum",
+			values: {
+				standard: {
+				},
+				basic: {
+				},
+				combined: {
+				},
+				igor: {
+				},
+				multidirectional: {
+				}
+			},
+			"default": "standard",
+			expression: {
+				interpolated: false,
 				parameters: [
 					"zoom"
 				]
@@ -9344,6 +9901,19 @@
 		layout_symbol: layout_symbol,
 		layout_raster: layout_raster,
 		layout_hillshade: layout_hillshade,
+		"layout_color-relief": {
+		visibility: {
+			type: "enum",
+			values: {
+				visible: {
+				},
+				none: {
+				}
+			},
+			"default": "visible",
+			"property-type": "constant"
+		}
+	},
 		filter: filter,
 		filter_operator: filter_operator,
 		geometry_type: geometry_type,
@@ -9604,6 +10174,33 @@
 		paint_symbol: paint_symbol,
 		paint_raster: paint_raster,
 		paint_hillshade: paint_hillshade,
+		"paint_color-relief": {
+		"color-relief-opacity": {
+			type: "number",
+			"default": 1,
+			minimum: 0,
+			maximum: 1,
+			transition: true,
+			expression: {
+				interpolated: true,
+				parameters: [
+					"zoom"
+				]
+			},
+			"property-type": "data-constant"
+		},
+		"color-relief-color": {
+			type: "color",
+			transition: false,
+			expression: {
+				interpolated: true,
+				parameters: [
+					"elevation"
+				]
+			},
+			"property-type": "color-ramp"
+		}
+	},
 		paint_background: paint_background,
 		transition: transition,
 		"property-type": {
@@ -9675,11 +10272,7 @@
 	    if (style['constants']) {
 	        errors = errors.concat(validateConstants({
 	            key: 'constants',
-	            value: style['constants'],
-	            style,
-	            styleSpec,
-	            validateSpec: validate,
-	        }));
+	            value: style['constants']}));
 	    }
 	    return sortErrors(errors);
 	}
@@ -9689,16 +10282,14 @@
 	validateStyleMin.light = wrapCleanErrors(injectValidateSpec(validateLight));
 	validateStyleMin.sky = wrapCleanErrors(injectValidateSpec(validateSky));
 	validateStyleMin.terrain = wrapCleanErrors(injectValidateSpec(validateTerrain));
+	validateStyleMin.state = wrapCleanErrors(injectValidateSpec(validateState));
 	validateStyleMin.layer = wrapCleanErrors(injectValidateSpec(validateLayer));
 	validateStyleMin.filter = wrapCleanErrors(injectValidateSpec(validateFilter));
 	validateStyleMin.paintProperty = wrapCleanErrors(injectValidateSpec(validatePaintProperty));
 	validateStyleMin.layoutProperty = wrapCleanErrors(injectValidateSpec(validateLayoutProperty));
 	function injectValidateSpec(validator) {
 	    return function (options) {
-	        return validator({
-	            ...options,
-	            validateSpec: validate,
-	        });
+	        return validator(Object.assign({}, options, { validateSpec: validate }));
 	    };
 	}
 	function sortErrors(errors) {
@@ -9732,664 +10323,672 @@
 
 	/* parser generated by jison 0.4.15 */
 
-	(function (exports) {
-		/*
-		  Returns a Parser object of the following structure:
+	var hasRequiredJsonlint;
 
-		  Parser: {
-		    yy: {}
-		  }
+	function requireJsonlint () {
+		if (hasRequiredJsonlint) return jsonlint$1;
+		hasRequiredJsonlint = 1;
+		(function (exports) {
+			/*
+			  Returns a Parser object of the following structure:
 
-		  Parser.prototype: {
-		    yy: {},
-		    trace: function(),
-		    symbols_: {associative list: name ==> number},
-		    terminals_: {associative list: number ==> name},
-		    productions_: [...],
-		    performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate, $$, _$),
-		    table: [...],
-		    defaultActions: {...},
-		    parseError: function(str, hash),
-		    parse: function(input),
+			  Parser: {
+			    yy: {}
+			  }
 
-		    lexer: {
-		        EOF: 1,
-		        parseError: function(str, hash),
-		        setInput: function(input),
-		        input: function(),
-		        unput: function(str),
-		        more: function(),
-		        less: function(n),
-		        pastInput: function(),
-		        upcomingInput: function(),
-		        showPosition: function(),
-		        test_match: function(regex_match_array, rule_index),
-		        next: function(),
-		        lex: function(),
-		        begin: function(condition),
-		        popState: function(),
-		        _currentRules: function(),
-		        topState: function(),
-		        pushState: function(condition),
+			  Parser.prototype: {
+			    yy: {},
+			    trace: function(),
+			    symbols_: {associative list: name ==> number},
+			    terminals_: {associative list: number ==> name},
+			    productions_: [...],
+			    performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate, $$, _$),
+			    table: [...],
+			    defaultActions: {...},
+			    parseError: function(str, hash),
+			    parse: function(input),
 
-		        options: {
-		            ranges: boolean           (optional: true ==> token location info will include a .range[] member)
-		            flex: boolean             (optional: true ==> flex-like lexing behaviour where the rules are tested exhaustively to find the longest match)
-		            backtrack_lexer: boolean  (optional: true ==> lexer regexes are tested in order and for each matching regex the action code is invoked; the lexer terminates the scan when a token is returned by the action code)
-		        },
+			    lexer: {
+			        EOF: 1,
+			        parseError: function(str, hash),
+			        setInput: function(input),
+			        input: function(),
+			        unput: function(str),
+			        more: function(),
+			        less: function(n),
+			        pastInput: function(),
+			        upcomingInput: function(),
+			        showPosition: function(),
+			        test_match: function(regex_match_array, rule_index),
+			        next: function(),
+			        lex: function(),
+			        begin: function(condition),
+			        popState: function(),
+			        _currentRules: function(),
+			        topState: function(),
+			        pushState: function(condition),
 
-		        performAction: function(yy, yy_, $avoiding_name_collisions, YY_START),
-		        rules: [...],
-		        conditions: {associative list: name ==> set},
-		    }
-		  }
+			        options: {
+			            ranges: boolean           (optional: true ==> token location info will include a .range[] member)
+			            flex: boolean             (optional: true ==> flex-like lexing behaviour where the rules are tested exhaustively to find the longest match)
+			            backtrack_lexer: boolean  (optional: true ==> lexer regexes are tested in order and for each matching regex the action code is invoked; the lexer terminates the scan when a token is returned by the action code)
+			        },
 
-
-		  token location info (@$, _$, etc.): {
-		    first_line: n,
-		    last_line: n,
-		    first_column: n,
-		    last_column: n,
-		    range: [start_number, end_number]       (where the numbers are indexes into the input string, regular zero-based)
-		  }
+			        performAction: function(yy, yy_, $avoiding_name_collisions, YY_START),
+			        rules: [...],
+			        conditions: {associative list: name ==> set},
+			    }
+			  }
 
 
-		  the parseError function receives a 'hash' object with these members for lexer and parser errors: {
-		    text:        (matched text)
-		    token:       (the produced terminal token, if any)
-		    line:        (yylineno)
-		  }
-		  while parser (grammar) errors will also provide these members, i.e. parser errors deliver a superset of attributes: {
-		    loc:         (yylloc)
-		    expected:    (string describing the set of expected tokens)
-		    recoverable: (boolean: TRUE when the parser has a error recovery rule available for this particular error)
-		  }
-		*/
-		var parser = (function(){
-		var o=function(k,v,o,l){for(o=o||{},l=k.length;l--;o[k[l]]=v);return o},$V0=[1,12],$V1=[1,13],$V2=[1,9],$V3=[1,10],$V4=[1,11],$V5=[1,14],$V6=[1,15],$V7=[14,18,22,24],$V8=[18,22],$V9=[22,24];
-		var parser = {trace: function trace() { },
-		yy: {},
-		symbols_: {"error":2,"JSONString":3,"STRING":4,"JSONNumber":5,"NUMBER":6,"JSONNullLiteral":7,"NULL":8,"JSONBooleanLiteral":9,"TRUE":10,"FALSE":11,"JSONText":12,"JSONValue":13,"EOF":14,"JSONObject":15,"JSONArray":16,"{":17,"}":18,"JSONMemberList":19,"JSONMember":20,":":21,",":22,"[":23,"]":24,"JSONElementList":25,"$accept":0,"$end":1},
-		terminals_: {2:"error",4:"STRING",6:"NUMBER",8:"NULL",10:"TRUE",11:"FALSE",14:"EOF",17:"{",18:"}",21:":",22:",",23:"[",24:"]"},
-		productions_: [0,[3,1],[5,1],[7,1],[9,1],[9,1],[12,2],[13,1],[13,1],[13,1],[13,1],[13,1],[13,1],[15,2],[15,3],[20,3],[19,1],[19,3],[16,2],[16,3],[25,1],[25,3]],
-		performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */) {
-		/* this == yyval */
-
-		var $0 = $$.length - 1;
-		switch (yystate) {
-		case 1:
-		 // replace escaped characters with actual character
-		          this.$ = new String(yytext.replace(/\\(\\|")/g, "$"+"1")
-		                     .replace(/\\n/g,'\n')
-		                     .replace(/\\r/g,'\r')
-		                     .replace(/\\t/g,'\t')
-		                     .replace(/\\v/g,'\v')
-		                     .replace(/\\f/g,'\f')
-		                     .replace(/\\b/g,'\b'));
-		          this.$.__line__ =  this._$.first_line;
-		        
-		break;
-		case 2:
-
-		            this.$ = new Number(yytext);
-		            this.$.__line__ =  this._$.first_line;
-		        
-		break;
-		case 3:
-
-		            this.$ = null;
-		        
-		break;
-		case 4:
-
-		            this.$ = new Boolean(true);
-		            this.$.__line__ = this._$.first_line;
-		        
-		break;
-		case 5:
-
-		            this.$ = new Boolean(false);
-		            this.$.__line__ = this._$.first_line;
-		        
-		break;
-		case 6:
-		return this.$ = $$[$0-1];
-		case 13:
-		this.$ = {}; Object.defineProperty(this.$, '__line__', {
-		            value: this._$.first_line,
-		            enumerable: false
-		        });
-		break;
-		case 14: case 19:
-		this.$ = $$[$0-1]; Object.defineProperty(this.$, '__line__', {
-		            value: this._$.first_line,
-		            enumerable: false
-		        });
-		break;
-		case 15:
-		this.$ = [$$[$0-2], $$[$0]];
-		break;
-		case 16:
-		this.$ = {}; this.$[$$[$0][0]] = $$[$0][1];
-		break;
-		case 17:
-		this.$ = $$[$0-2]; $$[$0-2][$$[$0][0]] = $$[$0][1];
-		break;
-		case 18:
-		this.$ = []; Object.defineProperty(this.$, '__line__', {
-		            value: this._$.first_line,
-		            enumerable: false
-		        });
-		break;
-		case 20:
-		this.$ = [$$[$0]];
-		break;
-		case 21:
-		this.$ = $$[$0-2]; $$[$0-2].push($$[$0]);
-		break;
-		}
-		},
-		table: [{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,12:1,13:2,15:7,16:8,17:$V5,23:$V6},{1:[3]},{14:[1,16]},o($V7,[2,7]),o($V7,[2,8]),o($V7,[2,9]),o($V7,[2,10]),o($V7,[2,11]),o($V7,[2,12]),o($V7,[2,3]),o($V7,[2,4]),o($V7,[2,5]),o([14,18,21,22,24],[2,1]),o($V7,[2,2]),{3:20,4:$V0,18:[1,17],19:18,20:19},{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,13:23,15:7,16:8,17:$V5,23:$V6,24:[1,21],25:22},{1:[2,6]},o($V7,[2,13]),{18:[1,24],22:[1,25]},o($V8,[2,16]),{21:[1,26]},o($V7,[2,18]),{22:[1,28],24:[1,27]},o($V9,[2,20]),o($V7,[2,14]),{3:20,4:$V0,20:29},{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,13:30,15:7,16:8,17:$V5,23:$V6},o($V7,[2,19]),{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,13:31,15:7,16:8,17:$V5,23:$V6},o($V8,[2,17]),o($V8,[2,15]),o($V9,[2,21])],
-		defaultActions: {16:[2,6]},
-		parseError: function parseError(str, hash) {
-		    if (hash.recoverable) {
-		        this.trace(str);
-		    } else {
-		        throw new Error(str);
-		    }
-		},
-		parse: function parse(input) {
-		    var self = this, stack = [0], vstack = [null], lstack = [], table = this.table, yytext = '', yylineno = 0, yyleng = 0, TERROR = 2, EOF = 1;
-		    var args = lstack.slice.call(arguments, 1);
-		    var lexer = Object.create(this.lexer);
-		    var sharedState = { yy: {} };
-		    for (var k in this.yy) {
-		        if (Object.prototype.hasOwnProperty.call(this.yy, k)) {
-		            sharedState.yy[k] = this.yy[k];
-		        }
-		    }
-		    lexer.setInput(input, sharedState.yy);
-		    sharedState.yy.lexer = lexer;
-		    sharedState.yy.parser = this;
-		    if (typeof lexer.yylloc == 'undefined') {
-		        lexer.yylloc = {};
-		    }
-		    var yyloc = lexer.yylloc;
-		    lstack.push(yyloc);
-		    var ranges = lexer.options && lexer.options.ranges;
-		    if (typeof sharedState.yy.parseError === 'function') {
-		        this.parseError = sharedState.yy.parseError;
-		    } else {
-		        this.parseError = Object.getPrototypeOf(this).parseError;
-		    }
-		    
-		        function lex() {
-		            var token;
-		            token = lexer.lex() || EOF;
-		            if (typeof token !== 'number') {
-		                token = self.symbols_[token] || token;
-		            }
-		            return token;
-		        }
-		    var symbol, state, action, r, yyval = {}, p, len, newState, expected;
-		    while (true) {
-		        state = stack[stack.length - 1];
-		        if (this.defaultActions[state]) {
-		            action = this.defaultActions[state];
-		        } else {
-		            if (symbol === null || typeof symbol == 'undefined') {
-		                symbol = lex();
-		            }
-		            action = table[state] && table[state][symbol];
-		        }
-		                    if (typeof action === 'undefined' || !action.length || !action[0]) {
-		                var errStr = '';
-		                expected = [];
-		                for (p in table[state]) {
-		                    if (this.terminals_[p] && p > TERROR) {
-		                        expected.push('\'' + this.terminals_[p] + '\'');
-		                    }
-		                }
-		                if (lexer.showPosition) {
-		                    errStr = 'Parse error on line ' + (yylineno + 1) + ':\n' + lexer.showPosition() + '\nExpecting ' + expected.join(', ') + ', got \'' + (this.terminals_[symbol] || symbol) + '\'';
-		                } else {
-		                    errStr = 'Parse error on line ' + (yylineno + 1) + ': Unexpected ' + (symbol == EOF ? 'end of input' : '\'' + (this.terminals_[symbol] || symbol) + '\'');
-		                }
-		                this.parseError(errStr, {
-		                    text: lexer.match,
-		                    token: this.terminals_[symbol] || symbol,
-		                    line: lexer.yylineno,
-		                    loc: yyloc,
-		                    expected: expected
-		                });
-		            }
-		        if (action[0] instanceof Array && action.length > 1) {
-		            throw new Error('Parse Error: multiple actions possible at state: ' + state + ', token: ' + symbol);
-		        }
-		        switch (action[0]) {
-		        case 1:
-		            stack.push(symbol);
-		            vstack.push(lexer.yytext);
-		            lstack.push(lexer.yylloc);
-		            stack.push(action[1]);
-		            symbol = null;
-		            {
-		                yyleng = lexer.yyleng;
-		                yytext = lexer.yytext;
-		                yylineno = lexer.yylineno;
-		                yyloc = lexer.yylloc;
-		            }
-		            break;
-		        case 2:
-		            len = this.productions_[action[1]][1];
-		            yyval.$ = vstack[vstack.length - len];
-		            yyval._$ = {
-		                first_line: lstack[lstack.length - (len || 1)].first_line,
-		                last_line: lstack[lstack.length - 1].last_line,
-		                first_column: lstack[lstack.length - (len || 1)].first_column,
-		                last_column: lstack[lstack.length - 1].last_column
-		            };
-		            if (ranges) {
-		                yyval._$.range = [
-		                    lstack[lstack.length - (len || 1)].range[0],
-		                    lstack[lstack.length - 1].range[1]
-		                ];
-		            }
-		            r = this.performAction.apply(yyval, [
-		                yytext,
-		                yyleng,
-		                yylineno,
-		                sharedState.yy,
-		                action[1],
-		                vstack,
-		                lstack
-		            ].concat(args));
-		            if (typeof r !== 'undefined') {
-		                return r;
-		            }
-		            if (len) {
-		                stack = stack.slice(0, -1 * len * 2);
-		                vstack = vstack.slice(0, -1 * len);
-		                lstack = lstack.slice(0, -1 * len);
-		            }
-		            stack.push(this.productions_[action[1]][0]);
-		            vstack.push(yyval.$);
-		            lstack.push(yyval._$);
-		            newState = table[stack[stack.length - 2]][stack[stack.length - 1]];
-		            stack.push(newState);
-		            break;
-		        case 3:
-		            return true;
-		        }
-		    }
-		    return true;
-		}};
-		/* generated by jison-lex 0.3.4 */
-		var lexer = (function(){
-		var lexer = ({
-
-		EOF:1,
-
-		parseError:function parseError(str, hash) {
-		        if (this.yy.parser) {
-		            this.yy.parser.parseError(str, hash);
-		        } else {
-		            throw new Error(str);
-		        }
-		    },
-
-		// resets the lexer, sets new input
-		setInput:function (input, yy) {
-		        this.yy = yy || this.yy || {};
-		        this._input = input;
-		        this._more = this._backtrack = this.done = false;
-		        this.yylineno = this.yyleng = 0;
-		        this.yytext = this.matched = this.match = '';
-		        this.conditionStack = ['INITIAL'];
-		        this.yylloc = {
-		            first_line: 1,
-		            first_column: 0,
-		            last_line: 1,
-		            last_column: 0
-		        };
-		        if (this.options.ranges) {
-		            this.yylloc.range = [0,0];
-		        }
-		        this.offset = 0;
-		        return this;
-		    },
-
-		// consumes and returns one char from the input
-		input:function () {
-		        var ch = this._input[0];
-		        this.yytext += ch;
-		        this.yyleng++;
-		        this.offset++;
-		        this.match += ch;
-		        this.matched += ch;
-		        var lines = ch.match(/(?:\r\n?|\n).*/g);
-		        if (lines) {
-		            this.yylineno++;
-		            this.yylloc.last_line++;
-		        } else {
-		            this.yylloc.last_column++;
-		        }
-		        if (this.options.ranges) {
-		            this.yylloc.range[1]++;
-		        }
-
-		        this._input = this._input.slice(1);
-		        return ch;
-		    },
-
-		// unshifts one char (or a string) into the input
-		unput:function (ch) {
-		        var len = ch.length;
-		        var lines = ch.split(/(?:\r\n?|\n)/g);
-
-		        this._input = ch + this._input;
-		        this.yytext = this.yytext.substr(0, this.yytext.length - len);
-		        //this.yyleng -= len;
-		        this.offset -= len;
-		        var oldLines = this.match.split(/(?:\r\n?|\n)/g);
-		        this.match = this.match.substr(0, this.match.length - 1);
-		        this.matched = this.matched.substr(0, this.matched.length - 1);
-
-		        if (lines.length - 1) {
-		            this.yylineno -= lines.length - 1;
-		        }
-		        var r = this.yylloc.range;
-
-		        this.yylloc = {
-		            first_line: this.yylloc.first_line,
-		            last_line: this.yylineno + 1,
-		            first_column: this.yylloc.first_column,
-		            last_column: lines ?
-		                (lines.length === oldLines.length ? this.yylloc.first_column : 0)
-		                 + oldLines[oldLines.length - lines.length].length - lines[0].length :
-		              this.yylloc.first_column - len
-		        };
-
-		        if (this.options.ranges) {
-		            this.yylloc.range = [r[0], r[0] + this.yyleng - len];
-		        }
-		        this.yyleng = this.yytext.length;
-		        return this;
-		    },
-
-		// When called from action, caches matched text and appends it on next action
-		more:function () {
-		        this._more = true;
-		        return this;
-		    },
-
-		// When called from action, signals the lexer that this rule fails to match the input, so the next matching rule (regex) should be tested instead.
-		reject:function () {
-		        if (this.options.backtrack_lexer) {
-		            this._backtrack = true;
-		        } else {
-		            return this.parseError('Lexical error on line ' + (this.yylineno + 1) + '. You can only invoke reject() in the lexer when the lexer is of the backtracking persuasion (options.backtrack_lexer = true).\n' + this.showPosition(), {
-		                text: "",
-		                token: null,
-		                line: this.yylineno
-		            });
-
-		        }
-		        return this;
-		    },
-
-		// retain first n characters of the match
-		less:function (n) {
-		        this.unput(this.match.slice(n));
-		    },
-
-		// displays already matched input, i.e. for error messages
-		pastInput:function () {
-		        var past = this.matched.substr(0, this.matched.length - this.match.length);
-		        return (past.length > 20 ? '...':'') + past.substr(-20).replace(/\n/g, "");
-		    },
-
-		// displays upcoming input, i.e. for error messages
-		upcomingInput:function () {
-		        var next = this.match;
-		        if (next.length < 20) {
-		            next += this._input.substr(0, 20-next.length);
-		        }
-		        return (next.substr(0,20) + (next.length > 20 ? '...' : '')).replace(/\n/g, "");
-		    },
-
-		// displays the character position where the lexing error occurred, i.e. for error messages
-		showPosition:function () {
-		        var pre = this.pastInput();
-		        var c = new Array(pre.length + 1).join("-");
-		        return pre + this.upcomingInput() + "\n" + c + "^";
-		    },
-
-		// test the lexed token: return FALSE when not a match, otherwise return token
-		test_match:function (match, indexed_rule) {
-		        var token,
-		            lines,
-		            backup;
-
-		        if (this.options.backtrack_lexer) {
-		            // save context
-		            backup = {
-		                yylineno: this.yylineno,
-		                yylloc: {
-		                    first_line: this.yylloc.first_line,
-		                    last_line: this.last_line,
-		                    first_column: this.yylloc.first_column,
-		                    last_column: this.yylloc.last_column
-		                },
-		                yytext: this.yytext,
-		                match: this.match,
-		                matches: this.matches,
-		                matched: this.matched,
-		                yyleng: this.yyleng,
-		                offset: this.offset,
-		                _more: this._more,
-		                _input: this._input,
-		                yy: this.yy,
-		                conditionStack: this.conditionStack.slice(0),
-		                done: this.done
-		            };
-		            if (this.options.ranges) {
-		                backup.yylloc.range = this.yylloc.range.slice(0);
-		            }
-		        }
-
-		        lines = match[0].match(/(?:\r\n?|\n).*/g);
-		        if (lines) {
-		            this.yylineno += lines.length;
-		        }
-		        this.yylloc = {
-		            first_line: this.yylloc.last_line,
-		            last_line: this.yylineno + 1,
-		            first_column: this.yylloc.last_column,
-		            last_column: lines ?
-		                         lines[lines.length - 1].length - lines[lines.length - 1].match(/\r?\n?/)[0].length :
-		                         this.yylloc.last_column + match[0].length
-		        };
-		        this.yytext += match[0];
-		        this.match += match[0];
-		        this.matches = match;
-		        this.yyleng = this.yytext.length;
-		        if (this.options.ranges) {
-		            this.yylloc.range = [this.offset, this.offset += this.yyleng];
-		        }
-		        this._more = false;
-		        this._backtrack = false;
-		        this._input = this._input.slice(match[0].length);
-		        this.matched += match[0];
-		        token = this.performAction.call(this, this.yy, this, indexed_rule, this.conditionStack[this.conditionStack.length - 1]);
-		        if (this.done && this._input) {
-		            this.done = false;
-		        }
-		        if (token) {
-		            return token;
-		        } else if (this._backtrack) {
-		            // recover context
-		            for (var k in backup) {
-		                this[k] = backup[k];
-		            }
-		            return false; // rule action called reject() implying the next rule should be tested instead.
-		        }
-		        return false;
-		    },
-
-		// return next match in input
-		next:function () {
-		        if (this.done) {
-		            return this.EOF;
-		        }
-		        if (!this._input) {
-		            this.done = true;
-		        }
-
-		        var token,
-		            match,
-		            tempMatch,
-		            index;
-		        if (!this._more) {
-		            this.yytext = '';
-		            this.match = '';
-		        }
-		        var rules = this._currentRules();
-		        for (var i = 0; i < rules.length; i++) {
-		            tempMatch = this._input.match(this.rules[rules[i]]);
-		            if (tempMatch && (!match || tempMatch[0].length > match[0].length)) {
-		                match = tempMatch;
-		                index = i;
-		                if (this.options.backtrack_lexer) {
-		                    token = this.test_match(tempMatch, rules[i]);
-		                    if (token !== false) {
-		                        return token;
-		                    } else if (this._backtrack) {
-		                        match = false;
-		                        continue; // rule action called reject() implying a rule MISmatch.
-		                    } else {
-		                        // else: this is a lexer rule which consumes input without producing a token (e.g. whitespace)
-		                        return false;
-		                    }
-		                } else if (!this.options.flex) {
-		                    break;
-		                }
-		            }
-		        }
-		        if (match) {
-		            token = this.test_match(match, rules[index]);
-		            if (token !== false) {
-		                return token;
-		            }
-		            // else: this is a lexer rule which consumes input without producing a token (e.g. whitespace)
-		            return false;
-		        }
-		        if (this._input === "") {
-		            return this.EOF;
-		        } else {
-		            return this.parseError('Lexical error on line ' + (this.yylineno + 1) + '. Unrecognized text.\n' + this.showPosition(), {
-		                text: "",
-		                token: null,
-		                line: this.yylineno
-		            });
-		        }
-		    },
-
-		// return next match that has a token
-		lex:function lex() {
-		        var r = this.next();
-		        if (r) {
-		            return r;
-		        } else {
-		            return this.lex();
-		        }
-		    },
-
-		// activates a new lexer condition state (pushes the new lexer condition state onto the condition stack)
-		begin:function begin(condition) {
-		        this.conditionStack.push(condition);
-		    },
-
-		// pop the previously active lexer condition state off the condition stack
-		popState:function popState() {
-		        var n = this.conditionStack.length - 1;
-		        if (n > 0) {
-		            return this.conditionStack.pop();
-		        } else {
-		            return this.conditionStack[0];
-		        }
-		    },
-
-		// produce the lexer rule set which is active for the currently active lexer condition state
-		_currentRules:function _currentRules() {
-		        if (this.conditionStack.length && this.conditionStack[this.conditionStack.length - 1]) {
-		            return this.conditions[this.conditionStack[this.conditionStack.length - 1]].rules;
-		        } else {
-		            return this.conditions["INITIAL"].rules;
-		        }
-		    },
-
-		// return the currently active lexer condition state; when an index argument is provided it produces the N-th previous condition state, if available
-		topState:function topState(n) {
-		        n = this.conditionStack.length - 1 - Math.abs(n || 0);
-		        if (n >= 0) {
-		            return this.conditionStack[n];
-		        } else {
-		            return "INITIAL";
-		        }
-		    },
-
-		// alias for begin(condition)
-		pushState:function pushState(condition) {
-		        this.begin(condition);
-		    },
-
-		// return the number of states currently on the stack
-		stateStackSize:function stateStackSize() {
-		        return this.conditionStack.length;
-		    },
-		options: {},
-		performAction: function anonymous(yy,yy_,$avoiding_name_collisions,YY_START) {
-		switch($avoiding_name_collisions) {
-		case 0:/* skip whitespace */
-		break;
-		case 1:return 6
-		case 2:yy_.yytext = yy_.yytext.substr(1,yy_.yyleng-2); return 4
-		case 3:return 17
-		case 4:return 18
-		case 5:return 23
-		case 6:return 24
-		case 7:return 22
-		case 8:return 21
-		case 9:return 10
-		case 10:return 11
-		case 11:return 8
-		case 12:return 14
-		case 13:return 'INVALID'
-		}
-		},
-		rules: [/^(?:\s+)/,/^(?:(-?([0-9]|[1-9][0-9]+))(\.[0-9]+)?([eE][-+]?[0-9]+)?\b)/,/^(?:"(?:\\[\\"bfnrt/]|\\u[a-fA-F0-9]{4}|[^\\\0-\x09\x0a-\x1f"])*")/,/^(?:\{)/,/^(?:\})/,/^(?:\[)/,/^(?:\])/,/^(?:,)/,/^(?::)/,/^(?:true\b)/,/^(?:false\b)/,/^(?:null\b)/,/^(?:$)/,/^(?:.)/],
-		conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13],"inclusive":true}}
-		});
-		return lexer;
-		})();
-		parser.lexer = lexer;
-		function Parser () {
-		  this.yy = {};
-		}
-		Parser.prototype = parser;parser.Parser = Parser;
-		return new Parser;
-		})();
+			  token location info (@$, _$, etc.): {
+			    first_line: n,
+			    last_line: n,
+			    first_column: n,
+			    last_column: n,
+			    range: [start_number, end_number]       (where the numbers are indexes into the input string, regular zero-based)
+			  }
 
 
-		if (typeof commonjsRequire !== 'undefined' && 'object' !== 'undefined') {
-		exports.parser = parser;
-		exports.Parser = parser.Parser;
-		exports.parse = function () { return parser.parse.apply(parser, arguments); };
-		} 
-	} (jsonlint$1));
+			  the parseError function receives a 'hash' object with these members for lexer and parser errors: {
+			    text:        (matched text)
+			    token:       (the produced terminal token, if any)
+			    line:        (yylineno)
+			  }
+			  while parser (grammar) errors will also provide these members, i.e. parser errors deliver a superset of attributes: {
+			    loc:         (yylloc)
+			    expected:    (string describing the set of expected tokens)
+			    recoverable: (boolean: TRUE when the parser has a error recovery rule available for this particular error)
+			  }
+			*/
+			var parser = (function(){
+			var o=function(k,v,o,l){for(o=o||{},l=k.length;l--;o[k[l]]=v);return o},$V0=[1,12],$V1=[1,13],$V2=[1,9],$V3=[1,10],$V4=[1,11],$V5=[1,14],$V6=[1,15],$V7=[14,18,22,24],$V8=[18,22],$V9=[22,24];
+			var parser = {trace: function trace() { },
+			yy: {},
+			symbols_: {"error":2,"JSONString":3,"STRING":4,"JSONNumber":5,"NUMBER":6,"JSONNullLiteral":7,"NULL":8,"JSONBooleanLiteral":9,"TRUE":10,"FALSE":11,"JSONText":12,"JSONValue":13,"EOF":14,"JSONObject":15,"JSONArray":16,"{":17,"}":18,"JSONMemberList":19,"JSONMember":20,":":21,",":22,"[":23,"]":24,"JSONElementList":25,"$accept":0,"$end":1},
+			terminals_: {2:"error",4:"STRING",6:"NUMBER",8:"NULL",10:"TRUE",11:"FALSE",14:"EOF",17:"{",18:"}",21:":",22:",",23:"[",24:"]"},
+			productions_: [0,[3,1],[5,1],[7,1],[9,1],[9,1],[12,2],[13,1],[13,1],[13,1],[13,1],[13,1],[13,1],[15,2],[15,3],[20,3],[19,1],[19,3],[16,2],[16,3],[25,1],[25,3]],
+			performAction: function anonymous(yytext, yyleng, yylineno, yy, yystate /* action[1] */, $$ /* vstack */, _$ /* lstack */) {
+			/* this == yyval */
 
-	var jsonlint = /*@__PURE__*/getDefaultExportFromCjs(jsonlint$1);
+			var $0 = $$.length - 1;
+			switch (yystate) {
+			case 1:
+			 // replace escaped characters with actual character
+			          this.$ = new String(yytext.replace(/\\(\\|")/g, "$"+"1")
+			                     .replace(/\\n/g,'\n')
+			                     .replace(/\\r/g,'\r')
+			                     .replace(/\\t/g,'\t')
+			                     .replace(/\\v/g,'\v')
+			                     .replace(/\\f/g,'\f')
+			                     .replace(/\\b/g,'\b'));
+			          this.$.__line__ =  this._$.first_line;
+			        
+			break;
+			case 2:
+
+			            this.$ = new Number(yytext);
+			            this.$.__line__ =  this._$.first_line;
+			        
+			break;
+			case 3:
+
+			            this.$ = null;
+			        
+			break;
+			case 4:
+
+			            this.$ = new Boolean(true);
+			            this.$.__line__ = this._$.first_line;
+			        
+			break;
+			case 5:
+
+			            this.$ = new Boolean(false);
+			            this.$.__line__ = this._$.first_line;
+			        
+			break;
+			case 6:
+			return this.$ = $$[$0-1];
+			case 13:
+			this.$ = {}; Object.defineProperty(this.$, '__line__', {
+			            value: this._$.first_line,
+			            enumerable: false
+			        });
+			break;
+			case 14: case 19:
+			this.$ = $$[$0-1]; Object.defineProperty(this.$, '__line__', {
+			            value: this._$.first_line,
+			            enumerable: false
+			        });
+			break;
+			case 15:
+			this.$ = [$$[$0-2], $$[$0]];
+			break;
+			case 16:
+			this.$ = {}; this.$[$$[$0][0]] = $$[$0][1];
+			break;
+			case 17:
+			this.$ = $$[$0-2]; $$[$0-2][$$[$0][0]] = $$[$0][1];
+			break;
+			case 18:
+			this.$ = []; Object.defineProperty(this.$, '__line__', {
+			            value: this._$.first_line,
+			            enumerable: false
+			        });
+			break;
+			case 20:
+			this.$ = [$$[$0]];
+			break;
+			case 21:
+			this.$ = $$[$0-2]; $$[$0-2].push($$[$0]);
+			break;
+			}
+			},
+			table: [{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,12:1,13:2,15:7,16:8,17:$V5,23:$V6},{1:[3]},{14:[1,16]},o($V7,[2,7]),o($V7,[2,8]),o($V7,[2,9]),o($V7,[2,10]),o($V7,[2,11]),o($V7,[2,12]),o($V7,[2,3]),o($V7,[2,4]),o($V7,[2,5]),o([14,18,21,22,24],[2,1]),o($V7,[2,2]),{3:20,4:$V0,18:[1,17],19:18,20:19},{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,13:23,15:7,16:8,17:$V5,23:$V6,24:[1,21],25:22},{1:[2,6]},o($V7,[2,13]),{18:[1,24],22:[1,25]},o($V8,[2,16]),{21:[1,26]},o($V7,[2,18]),{22:[1,28],24:[1,27]},o($V9,[2,20]),o($V7,[2,14]),{3:20,4:$V0,20:29},{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,13:30,15:7,16:8,17:$V5,23:$V6},o($V7,[2,19]),{3:5,4:$V0,5:6,6:$V1,7:3,8:$V2,9:4,10:$V3,11:$V4,13:31,15:7,16:8,17:$V5,23:$V6},o($V8,[2,17]),o($V8,[2,15]),o($V9,[2,21])],
+			defaultActions: {16:[2,6]},
+			parseError: function parseError(str, hash) {
+			    if (hash.recoverable) {
+			        this.trace(str);
+			    } else {
+			        throw new Error(str);
+			    }
+			},
+			parse: function parse(input) {
+			    var self = this, stack = [0], vstack = [null], lstack = [], table = this.table, yytext = '', yylineno = 0, yyleng = 0, TERROR = 2, EOF = 1;
+			    var args = lstack.slice.call(arguments, 1);
+			    var lexer = Object.create(this.lexer);
+			    var sharedState = { yy: {} };
+			    for (var k in this.yy) {
+			        if (Object.prototype.hasOwnProperty.call(this.yy, k)) {
+			            sharedState.yy[k] = this.yy[k];
+			        }
+			    }
+			    lexer.setInput(input, sharedState.yy);
+			    sharedState.yy.lexer = lexer;
+			    sharedState.yy.parser = this;
+			    if (typeof lexer.yylloc == 'undefined') {
+			        lexer.yylloc = {};
+			    }
+			    var yyloc = lexer.yylloc;
+			    lstack.push(yyloc);
+			    var ranges = lexer.options && lexer.options.ranges;
+			    if (typeof sharedState.yy.parseError === 'function') {
+			        this.parseError = sharedState.yy.parseError;
+			    } else {
+			        this.parseError = Object.getPrototypeOf(this).parseError;
+			    }
+			    
+			        function lex() {
+			            var token;
+			            token = lexer.lex() || EOF;
+			            if (typeof token !== 'number') {
+			                token = self.symbols_[token] || token;
+			            }
+			            return token;
+			        }
+			    var symbol, state, action, r, yyval = {}, p, len, newState, expected;
+			    while (true) {
+			        state = stack[stack.length - 1];
+			        if (this.defaultActions[state]) {
+			            action = this.defaultActions[state];
+			        } else {
+			            if (symbol === null || typeof symbol == 'undefined') {
+			                symbol = lex();
+			            }
+			            action = table[state] && table[state][symbol];
+			        }
+			                    if (typeof action === 'undefined' || !action.length || !action[0]) {
+			                var errStr = '';
+			                expected = [];
+			                for (p in table[state]) {
+			                    if (this.terminals_[p] && p > TERROR) {
+			                        expected.push('\'' + this.terminals_[p] + '\'');
+			                    }
+			                }
+			                if (lexer.showPosition) {
+			                    errStr = 'Parse error on line ' + (yylineno + 1) + ':\n' + lexer.showPosition() + '\nExpecting ' + expected.join(', ') + ', got \'' + (this.terminals_[symbol] || symbol) + '\'';
+			                } else {
+			                    errStr = 'Parse error on line ' + (yylineno + 1) + ': Unexpected ' + (symbol == EOF ? 'end of input' : '\'' + (this.terminals_[symbol] || symbol) + '\'');
+			                }
+			                this.parseError(errStr, {
+			                    text: lexer.match,
+			                    token: this.terminals_[symbol] || symbol,
+			                    line: lexer.yylineno,
+			                    loc: yyloc,
+			                    expected: expected
+			                });
+			            }
+			        if (action[0] instanceof Array && action.length > 1) {
+			            throw new Error('Parse Error: multiple actions possible at state: ' + state + ', token: ' + symbol);
+			        }
+			        switch (action[0]) {
+			        case 1:
+			            stack.push(symbol);
+			            vstack.push(lexer.yytext);
+			            lstack.push(lexer.yylloc);
+			            stack.push(action[1]);
+			            symbol = null;
+			            {
+			                yyleng = lexer.yyleng;
+			                yytext = lexer.yytext;
+			                yylineno = lexer.yylineno;
+			                yyloc = lexer.yylloc;
+			            }
+			            break;
+			        case 2:
+			            len = this.productions_[action[1]][1];
+			            yyval.$ = vstack[vstack.length - len];
+			            yyval._$ = {
+			                first_line: lstack[lstack.length - (len || 1)].first_line,
+			                last_line: lstack[lstack.length - 1].last_line,
+			                first_column: lstack[lstack.length - (len || 1)].first_column,
+			                last_column: lstack[lstack.length - 1].last_column
+			            };
+			            if (ranges) {
+			                yyval._$.range = [
+			                    lstack[lstack.length - (len || 1)].range[0],
+			                    lstack[lstack.length - 1].range[1]
+			                ];
+			            }
+			            r = this.performAction.apply(yyval, [
+			                yytext,
+			                yyleng,
+			                yylineno,
+			                sharedState.yy,
+			                action[1],
+			                vstack,
+			                lstack
+			            ].concat(args));
+			            if (typeof r !== 'undefined') {
+			                return r;
+			            }
+			            if (len) {
+			                stack = stack.slice(0, -1 * len * 2);
+			                vstack = vstack.slice(0, -1 * len);
+			                lstack = lstack.slice(0, -1 * len);
+			            }
+			            stack.push(this.productions_[action[1]][0]);
+			            vstack.push(yyval.$);
+			            lstack.push(yyval._$);
+			            newState = table[stack[stack.length - 2]][stack[stack.length - 1]];
+			            stack.push(newState);
+			            break;
+			        case 3:
+			            return true;
+			        }
+			    }
+			    return true;
+			}};
+			/* generated by jison-lex 0.3.4 */
+			var lexer = (function(){
+			var lexer = ({
+
+			EOF:1,
+
+			parseError:function parseError(str, hash) {
+			        if (this.yy.parser) {
+			            this.yy.parser.parseError(str, hash);
+			        } else {
+			            throw new Error(str);
+			        }
+			    },
+
+			// resets the lexer, sets new input
+			setInput:function (input, yy) {
+			        this.yy = yy || this.yy || {};
+			        this._input = input;
+			        this._more = this._backtrack = this.done = false;
+			        this.yylineno = this.yyleng = 0;
+			        this.yytext = this.matched = this.match = '';
+			        this.conditionStack = ['INITIAL'];
+			        this.yylloc = {
+			            first_line: 1,
+			            first_column: 0,
+			            last_line: 1,
+			            last_column: 0
+			        };
+			        if (this.options.ranges) {
+			            this.yylloc.range = [0,0];
+			        }
+			        this.offset = 0;
+			        return this;
+			    },
+
+			// consumes and returns one char from the input
+			input:function () {
+			        var ch = this._input[0];
+			        this.yytext += ch;
+			        this.yyleng++;
+			        this.offset++;
+			        this.match += ch;
+			        this.matched += ch;
+			        var lines = ch.match(/(?:\r\n?|\n).*/g);
+			        if (lines) {
+			            this.yylineno++;
+			            this.yylloc.last_line++;
+			        } else {
+			            this.yylloc.last_column++;
+			        }
+			        if (this.options.ranges) {
+			            this.yylloc.range[1]++;
+			        }
+
+			        this._input = this._input.slice(1);
+			        return ch;
+			    },
+
+			// unshifts one char (or a string) into the input
+			unput:function (ch) {
+			        var len = ch.length;
+			        var lines = ch.split(/(?:\r\n?|\n)/g);
+
+			        this._input = ch + this._input;
+			        this.yytext = this.yytext.substr(0, this.yytext.length - len);
+			        //this.yyleng -= len;
+			        this.offset -= len;
+			        var oldLines = this.match.split(/(?:\r\n?|\n)/g);
+			        this.match = this.match.substr(0, this.match.length - 1);
+			        this.matched = this.matched.substr(0, this.matched.length - 1);
+
+			        if (lines.length - 1) {
+			            this.yylineno -= lines.length - 1;
+			        }
+			        var r = this.yylloc.range;
+
+			        this.yylloc = {
+			            first_line: this.yylloc.first_line,
+			            last_line: this.yylineno + 1,
+			            first_column: this.yylloc.first_column,
+			            last_column: lines ?
+			                (lines.length === oldLines.length ? this.yylloc.first_column : 0)
+			                 + oldLines[oldLines.length - lines.length].length - lines[0].length :
+			              this.yylloc.first_column - len
+			        };
+
+			        if (this.options.ranges) {
+			            this.yylloc.range = [r[0], r[0] + this.yyleng - len];
+			        }
+			        this.yyleng = this.yytext.length;
+			        return this;
+			    },
+
+			// When called from action, caches matched text and appends it on next action
+			more:function () {
+			        this._more = true;
+			        return this;
+			    },
+
+			// When called from action, signals the lexer that this rule fails to match the input, so the next matching rule (regex) should be tested instead.
+			reject:function () {
+			        if (this.options.backtrack_lexer) {
+			            this._backtrack = true;
+			        } else {
+			            return this.parseError('Lexical error on line ' + (this.yylineno + 1) + '. You can only invoke reject() in the lexer when the lexer is of the backtracking persuasion (options.backtrack_lexer = true).\n' + this.showPosition(), {
+			                text: "",
+			                token: null,
+			                line: this.yylineno
+			            });
+
+			        }
+			        return this;
+			    },
+
+			// retain first n characters of the match
+			less:function (n) {
+			        this.unput(this.match.slice(n));
+			    },
+
+			// displays already matched input, i.e. for error messages
+			pastInput:function () {
+			        var past = this.matched.substr(0, this.matched.length - this.match.length);
+			        return (past.length > 20 ? '...':'') + past.substr(-20).replace(/\n/g, "");
+			    },
+
+			// displays upcoming input, i.e. for error messages
+			upcomingInput:function () {
+			        var next = this.match;
+			        if (next.length < 20) {
+			            next += this._input.substr(0, 20-next.length);
+			        }
+			        return (next.substr(0,20) + (next.length > 20 ? '...' : '')).replace(/\n/g, "");
+			    },
+
+			// displays the character position where the lexing error occurred, i.e. for error messages
+			showPosition:function () {
+			        var pre = this.pastInput();
+			        var c = new Array(pre.length + 1).join("-");
+			        return pre + this.upcomingInput() + "\n" + c + "^";
+			    },
+
+			// test the lexed token: return FALSE when not a match, otherwise return token
+			test_match:function (match, indexed_rule) {
+			        var token,
+			            lines,
+			            backup;
+
+			        if (this.options.backtrack_lexer) {
+			            // save context
+			            backup = {
+			                yylineno: this.yylineno,
+			                yylloc: {
+			                    first_line: this.yylloc.first_line,
+			                    last_line: this.last_line,
+			                    first_column: this.yylloc.first_column,
+			                    last_column: this.yylloc.last_column
+			                },
+			                yytext: this.yytext,
+			                match: this.match,
+			                matches: this.matches,
+			                matched: this.matched,
+			                yyleng: this.yyleng,
+			                offset: this.offset,
+			                _more: this._more,
+			                _input: this._input,
+			                yy: this.yy,
+			                conditionStack: this.conditionStack.slice(0),
+			                done: this.done
+			            };
+			            if (this.options.ranges) {
+			                backup.yylloc.range = this.yylloc.range.slice(0);
+			            }
+			        }
+
+			        lines = match[0].match(/(?:\r\n?|\n).*/g);
+			        if (lines) {
+			            this.yylineno += lines.length;
+			        }
+			        this.yylloc = {
+			            first_line: this.yylloc.last_line,
+			            last_line: this.yylineno + 1,
+			            first_column: this.yylloc.last_column,
+			            last_column: lines ?
+			                         lines[lines.length - 1].length - lines[lines.length - 1].match(/\r?\n?/)[0].length :
+			                         this.yylloc.last_column + match[0].length
+			        };
+			        this.yytext += match[0];
+			        this.match += match[0];
+			        this.matches = match;
+			        this.yyleng = this.yytext.length;
+			        if (this.options.ranges) {
+			            this.yylloc.range = [this.offset, this.offset += this.yyleng];
+			        }
+			        this._more = false;
+			        this._backtrack = false;
+			        this._input = this._input.slice(match[0].length);
+			        this.matched += match[0];
+			        token = this.performAction.call(this, this.yy, this, indexed_rule, this.conditionStack[this.conditionStack.length - 1]);
+			        if (this.done && this._input) {
+			            this.done = false;
+			        }
+			        if (token) {
+			            return token;
+			        } else if (this._backtrack) {
+			            // recover context
+			            for (var k in backup) {
+			                this[k] = backup[k];
+			            }
+			            return false; // rule action called reject() implying the next rule should be tested instead.
+			        }
+			        return false;
+			    },
+
+			// return next match in input
+			next:function () {
+			        if (this.done) {
+			            return this.EOF;
+			        }
+			        if (!this._input) {
+			            this.done = true;
+			        }
+
+			        var token,
+			            match,
+			            tempMatch,
+			            index;
+			        if (!this._more) {
+			            this.yytext = '';
+			            this.match = '';
+			        }
+			        var rules = this._currentRules();
+			        for (var i = 0; i < rules.length; i++) {
+			            tempMatch = this._input.match(this.rules[rules[i]]);
+			            if (tempMatch && (!match || tempMatch[0].length > match[0].length)) {
+			                match = tempMatch;
+			                index = i;
+			                if (this.options.backtrack_lexer) {
+			                    token = this.test_match(tempMatch, rules[i]);
+			                    if (token !== false) {
+			                        return token;
+			                    } else if (this._backtrack) {
+			                        match = false;
+			                        continue; // rule action called reject() implying a rule MISmatch.
+			                    } else {
+			                        // else: this is a lexer rule which consumes input without producing a token (e.g. whitespace)
+			                        return false;
+			                    }
+			                } else if (!this.options.flex) {
+			                    break;
+			                }
+			            }
+			        }
+			        if (match) {
+			            token = this.test_match(match, rules[index]);
+			            if (token !== false) {
+			                return token;
+			            }
+			            // else: this is a lexer rule which consumes input without producing a token (e.g. whitespace)
+			            return false;
+			        }
+			        if (this._input === "") {
+			            return this.EOF;
+			        } else {
+			            return this.parseError('Lexical error on line ' + (this.yylineno + 1) + '. Unrecognized text.\n' + this.showPosition(), {
+			                text: "",
+			                token: null,
+			                line: this.yylineno
+			            });
+			        }
+			    },
+
+			// return next match that has a token
+			lex:function lex() {
+			        var r = this.next();
+			        if (r) {
+			            return r;
+			        } else {
+			            return this.lex();
+			        }
+			    },
+
+			// activates a new lexer condition state (pushes the new lexer condition state onto the condition stack)
+			begin:function begin(condition) {
+			        this.conditionStack.push(condition);
+			    },
+
+			// pop the previously active lexer condition state off the condition stack
+			popState:function popState() {
+			        var n = this.conditionStack.length - 1;
+			        if (n > 0) {
+			            return this.conditionStack.pop();
+			        } else {
+			            return this.conditionStack[0];
+			        }
+			    },
+
+			// produce the lexer rule set which is active for the currently active lexer condition state
+			_currentRules:function _currentRules() {
+			        if (this.conditionStack.length && this.conditionStack[this.conditionStack.length - 1]) {
+			            return this.conditions[this.conditionStack[this.conditionStack.length - 1]].rules;
+			        } else {
+			            return this.conditions["INITIAL"].rules;
+			        }
+			    },
+
+			// return the currently active lexer condition state; when an index argument is provided it produces the N-th previous condition state, if available
+			topState:function topState(n) {
+			        n = this.conditionStack.length - 1 - Math.abs(n || 0);
+			        if (n >= 0) {
+			            return this.conditionStack[n];
+			        } else {
+			            return "INITIAL";
+			        }
+			    },
+
+			// alias for begin(condition)
+			pushState:function pushState(condition) {
+			        this.begin(condition);
+			    },
+
+			// return the number of states currently on the stack
+			stateStackSize:function stateStackSize() {
+			        return this.conditionStack.length;
+			    },
+			options: {},
+			performAction: function anonymous(yy,yy_,$avoiding_name_collisions,YY_START) {
+			switch($avoiding_name_collisions) {
+			case 0:/* skip whitespace */
+			break;
+			case 1:return 6
+			case 2:yy_.yytext = yy_.yytext.substr(1,yy_.yyleng-2); return 4
+			case 3:return 17
+			case 4:return 18
+			case 5:return 23
+			case 6:return 24
+			case 7:return 22
+			case 8:return 21
+			case 9:return 10
+			case 10:return 11
+			case 11:return 8
+			case 12:return 14
+			case 13:return 'INVALID'
+			}
+			},
+			rules: [/^(?:\s+)/,/^(?:(-?([0-9]|[1-9][0-9]+))(\.[0-9]+)?([eE][-+]?[0-9]+)?\b)/,/^(?:"(?:\\[\\"bfnrt/]|\\u[a-fA-F0-9]{4}|[^\\\0-\x09\x0a-\x1f"])*")/,/^(?:\{)/,/^(?:\})/,/^(?:\[)/,/^(?:\])/,/^(?:,)/,/^(?::)/,/^(?:true\b)/,/^(?:false\b)/,/^(?:null\b)/,/^(?:$)/,/^(?:.)/],
+			conditions: {"INITIAL":{"rules":[0,1,2,3,4,5,6,7,8,9,10,11,12,13],"inclusive":true}}
+			});
+			return lexer;
+			})();
+			parser.lexer = lexer;
+			function Parser () {
+			  this.yy = {};
+			}
+			Parser.prototype = parser;parser.Parser = Parser;
+			return new Parser;
+			})();
+
+
+			if (typeof commonjsRequire !== 'undefined' && 'object' !== 'undefined') {
+			exports.parser = parser;
+			exports.Parser = parser.Parser;
+			exports.parse = function () { return parser.parse.apply(parser, arguments); };
+			} 
+		} (jsonlint$1));
+		return jsonlint$1;
+	}
+
+	var jsonlintExports = requireJsonlint();
+	var jsonlint = /*@__PURE__*/getDefaultExportFromCjs(jsonlintExports);
 
 	function readStyle(style) {
 	    if (style instanceof String || typeof style === 'string' || style instanceof Buffer) {
@@ -10427,7 +11026,7 @@
 	    return validateStyleMin(s, styleSpec);
 	}
 
-	const argv = minimist$1(process.argv.slice(2), {
+	const argv = minimist(process.argv.slice(2), {
 	    boolean: 'json',
 	});
 
